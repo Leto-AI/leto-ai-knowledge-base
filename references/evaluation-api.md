@@ -77,11 +77,12 @@ GET /api/evaluations/retrieval-variants
 GET /api/evaluations/retrieval-variants/{retrievalVariantId}
 ```
 
-- `building`：仍在构建或当前闭集不再完整；有界轮询，不创建 Target。
+- `building`：仍在构建；有界轮询，不创建 Target。
 - `ready_not_active`：物理闭集完整，但明确没有上线。
+- `stale`：Variant 所绑定的发布闭集或当前索引闭集已变化；停止等待，不得创建 Target，重新创建当前 Variant。
 - 404：不存在或不可见；不要枚举 ID。
 
-首版只执行与当前线上相同 Embedding Profile、改变融合配置的 Variant。不同 Profile 会失败关闭，不能退回当前模型假装完成候选评测。
+Variant 的头、预期文档闭集和 Build 关系由服务端在一个事务内登记。列表和详情会按当前 Document Read 权限重新过滤；撤权后返回空列表或 `404`，不得据此判断资源是否存在。首版只执行与当前线上相同 Embedding Profile、改变融合配置的 Variant。不同 Profile 会失败关闭，不能退回当前模型假装完成候选评测。
 
 ## 3. 创建固定 Candidate Target
 

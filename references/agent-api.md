@@ -175,4 +175,4 @@ GET /api/agent/v1/work-orders/{workOrderId}/summary
 
 `validation_queued` 只表示已进入服务端复验队列。继续轮询，直到 `published`、`rejected` 或 `superseded`。失败时保留错误码和有界诊断，修正当前 Work Order；不得宣称已经写入知识库。
 
-发布阶段由服务端确定性生成 `index/chunks.jsonl` 与 `index/manifest.json`，客户端 AI 不提交这两个文件。Index Manifest 的 `embeddingStatus=not_configured` 表示 Chunk Artifact 已可供 RAG/向量库消费，但尚未生成或写入任何 Embedding；不得向用户宣称向量索引已经完成。
+发布阶段由服务端确定性生成 `index/chunks.jsonl` 与 `index/manifest.json`，客户端 AI 不提交这两个文件。Index Manifest 是不可变 Content Package 的构建记录；其中的 `embeddingStatus` 不代表当前独立 Index Build 的实时状态。发布成功后保存 Publication Receipt 和 `documentId`，再按 [retrieval-api.md](retrieval-api.md) 查询实时索引。Work Order 属于临时处理流程，保留期结束后可能返回 410，不得依赖它作为长期状态入口。

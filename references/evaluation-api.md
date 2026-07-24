@@ -140,4 +140,42 @@ GET /api/evaluations/cohorts/{evaluationCohortId}
 
 只有 `sealed_stable` 且服务端签名回执验证通过，才能报告“候选稳定性评测完成”。网络或 5xx 可按同一请求幂等重试；4xx 应修正输入或停止。`POST /api/evaluations/runs` 仅供管理员诊断单轮问题，不属于候选发布评测闭环，Skill 不得用它代替 Cohort。
 
-当前阶段尚未公开 Candidate 激活 API。即使 Cohort 为 `sealed_stable`，也只能报告“候选稳定性评测完成”；不得声称 Gate 已通过或候选已上线。
+## 5. 登记与读取 Current Baseline
+
+Current Baseline 是后续 Gate 比较的线上基准，不是 Candidate 的别名。只有用户明确要求建立或更新线上基准时执行。先创建服务端 Current Target：
+
+```http
+POST /api/evaluations/retrieval-targets
+
+{
+  "datasetVersionId": "edsv_...",
+  "targetKind": "current",
+  "retrievalConfigId": "retcfg_hybrid_rrf_v1"
+}
+```
+
+再按第 4 节为这个 Current Target 创建并等待一个 `sealed_stable` Cohort。Baseline 只接受 Current Target；Candidate Target 即使稳定也必须被拒绝，不能绕过后续 Gate。
+
+读取现有槽位及其 `generation`：
+
+```http
+GET /api/evaluations/baselines
+GET /api/evaluations/baselines/{datasetVersionId}/retrieval_gate_v1
+```
+
+首次登记使用 `expectedGeneration=0`；更新必须提交刚读取的精确 generation：
+
+```http
+PUT /api/evaluations/baselines/{datasetVersionId}/retrieval_gate_v1
+
+{
+  "evaluationCohortId": "evco_...",
+  "expectedGeneration": 0
+}
+```
+
+服务端以事务 CAS 修改槽位，并分别签名不可变 Baseline Fact 和当前 Slot assignment。即使重复设置同一个 Baseline，也必须提交当前 generation；陈旧 generation 返回 `409 EVALUATION_BASELINE_GENERATION_CONFLICT`，应重新读取并让用户确认，不能盲目覆盖。请求不得增加报告、指标、Target、Tenant、权限或签名字段。
+
+登记时服务端会在提交前重新捕获当前 Publication、Index 与授权快照。Target 只是创建时标记为 `current`、但现网已经发布新版本或切换索引时，会返回 `409 EVALUATION_TARGET_STALE` 且不推进 generation；客户端必须创建新的 Current Target 和 Cohort，不能复用历史 Target。
+
+Current Baseline 成功登记仍不等于 Candidate Gate 通过。当前阶段尚未公开 Candidate 激活 API。即使 Candidate Cohort 为 `sealed_stable`，也只能报告“候选稳定性评测完成”；不得声称 Gate 已通过或候选已上线。

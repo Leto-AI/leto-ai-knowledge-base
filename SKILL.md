@@ -48,6 +48,7 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 5. 对固定 Target 只创建一个服务端 Cohort。不得自行创建三轮 Run，不得提交、挑选、替换或重抽 `evaluationRunId`；服务端会在一个事务中冻结恰好三个顺序槽位并执行可恢复评测。
 6. 轮询 Cohort。只有签名回执验证通过且 `status=sealed_stable` 才能报告“候选稳定性评测完成”；`sealed_unstable`、`failed`、`invalid` 都必须如实失败。`sealed_stable` 仍不等于 Gate 通过。
 7. 当前 Skill 不调用任何激活接口；没有签名 Gate Decision 与一次性 Permit 时，向用户明确报告“仅完成候选评测，尚未获准上线”。
+8. Current Baseline 与 Candidate 评测严格分离。只有用户明确要求登记线上基准时，才可用 Current Target 的 `sealed_stable` Cohort 和当前 `generation` 执行 Baseline CAS；Candidate Target 永远不能直接成为 Current Baseline。
 
 ## 图片语义分层（强制）
 

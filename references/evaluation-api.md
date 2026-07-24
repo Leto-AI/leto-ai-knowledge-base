@@ -178,4 +178,52 @@ PUT /api/evaluations/baselines/{datasetVersionId}/retrieval_gate_v1
 
 登记时服务端会在提交前重新捕获当前 Publication、Index 与授权快照。Target 只是创建时标记为 `current`、但现网已经发布新版本或切换索引时，会返回 `409 EVALUATION_TARGET_STALE` 且不推进 generation；客户端必须创建新的 Current Target 和 Cohort，不能复用历史 Target。
 
-Current Baseline 成功登记仍不等于 Candidate Gate 通过。当前阶段尚未公开 Candidate 激活 API。即使 Candidate Cohort 为 `sealed_stable`，也只能报告“候选稳定性评测完成”；不得声称 Gate 已通过或候选已上线。
+Current Baseline 成功登记仍不等于 Candidate Gate 通过。
+
+## 6. 创建并读取签名 Gate Decision
+
+只有 Candidate Cohort 已进入终态，且已经读取当前 Baseline generation 后，才能请求服务端判定：
+
+```http
+POST /api/evaluations/gates/retrieval_gate_v1/decisions
+
+{
+  "datasetVersionId": "edsv_...",
+  "candidateCohortId": "evco_...",
+  "expectedBaselineGeneration": 1
+}
+```
+
+请求是闭合对象。禁止增加指标、阈值、报告、Run、Target、Variant、Activation Plan、Tenant、Namespace、权限、签名或服务端摘要。服务端自行读取并验证 Dataset、三槽 Baseline/Candidate 证据、当前权限与发布/索引闭集，并使用固定 `retrieval_gate_v1` 数值政策生成不可变签名 Decision。
+
+返回只包含可公开摘要：
+
+```json
+{
+  "decisionId": "evgd_...",
+  "datasetVersionId": "edsv_...",
+  "gatePolicyId": "retrieval_gate_v1",
+  "baselineGeneration": 1,
+  "candidateCohortId": "evco_...",
+  "candidateVariantId": "retv_...",
+  "outcome": "PASS",
+  "reasonCodes": [],
+  "createdAt": "2026-07-24T12:00:00.000Z",
+  "reused": false
+}
+```
+
+读取并重新鉴权：
+
+```http
+GET /api/evaluations/gates/decisions/{decisionId}
+```
+
+- `PASS`：候选在固定政策下未退化且安全检查通过。只能报告“通过门禁，尚未上线”。
+- `FAIL`：候选证据有效，但至少一项候选安全或质量检查失败。原样报告 `reasonCodes`，不要重试抽样。
+- `INVALID`：基线或候选证据不满足可比较条件。必须先修复基线、稳定性或证据完整性，不能解释为候选失败，也不能继续激活。
+- `409 EVALUATION_GATE_BASELINE_CONFLICT`：Baseline 已推进。重新读取 Baseline，并让用户确认是否针对新基线重新判定。
+
+Decision 响应不会暴露内部 Projection、Run Evidence、Activation Plan、Index Build 或 Namespace。客户端不得探测这些数据。
+
+当前尚未公开 Candidate 激活 API。即使 Decision 为 `PASS`，没有一次性 Permit 和 Route 激活回执也不得声称候选已上线。

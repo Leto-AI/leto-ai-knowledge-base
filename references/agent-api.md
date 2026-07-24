@@ -52,6 +52,14 @@ GET /api/agent/v1/work-orders/{workOrderId}/units/{unitId}/input
 
 Markdown Unit 已在 `input.text` 中提供正文。图片与 PDF page Unit 从 `/input` 获取服务端签发的图片字节。
 
+处理图片或 PDF page 时必须把信息分成三层：
+
+- `visibleText`：图片 OCR 原文，只进入 Asset 元数据。
+- `detailedDescription`：图片的使用场景、画面内容、讲述内容和表达含义。
+- `localBlocks`：整理后的知识正文，只保留适合人工阅读和 RAG 的事实、关系、流程、结论与业务含义。
+
+禁止把 `visibleText` 或 OCR 逐字稿作为 paragraph 提交。服务端可以校验结构与引用，但不会调用模型替客户端判断正文是否具有语义价值，因此客户端 AI 必须在提交前完成这项检查。
+
 ### 登记服务端已有图片
 
 `sourcePath` 必须原样取自 Unit 的 `input.sourcePath` 或 `input.pageImagePath`：
@@ -131,7 +139,7 @@ Idempotency-Key: unit-<unitId>-generation-<n>
   "output": {
     "localBlocks": [
       {"localKey": "title", "type": "heading", "level": 1, "text": "标题"},
-      {"localKey": "body", "type": "paragraph", "text": "正文"}
+      {"localKey": "body", "type": "paragraph", "text": "该图用于说明申请审批流程：员工提交后由主管审核，通过后进入归档；其核心含义是审批责任和状态流转必须可追踪。"}
     ],
     "imagePlacements": [
       {"localKey": "figure-1", "assetId": "asset_<id>", "afterLocalBlockKey": "body"}
@@ -139,6 +147,20 @@ Idempotency-Key: unit-<unitId>-generation-<n>
   }
 }
 ```
+
+错误示例：
+
+```json
+{
+  "localKey": "ocr-copy",
+  "type": "paragraph",
+  "text": "申请 提交申请 主管审批 审批通过 归档 返回 修改 驳回……"
+}
+```
+
+上例只是把图片 OCR 重新写入正文。正确做法是把这段原始文字放入 Asset 的
+`visibleText`，将流程关系和业务结论写入 `localBlocks`，并用 `imagePlacements`
+引用图片。
 
 ## 3. Finalization 与结果
 

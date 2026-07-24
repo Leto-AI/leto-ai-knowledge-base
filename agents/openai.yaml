@@ -1,0 +1,7 @@
+interface:
+  display_name: "乐途智行 · leto AI 知识库"
+  short_description: "用客户端 AI 解析并提交知识库文档"
+  default_prompt: "Use $leto-ai-knowledge-base to parse the file I specify and submit it through the leto AI Agent API."
+
+policy:
+  allow_implicit_invocation: true

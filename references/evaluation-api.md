@@ -111,27 +111,33 @@ POST /api/evaluations/retrieval-targets/{retrievalTargetId}/query
 
 只有 `strategyApplied=hybrid_rrf` 且 `degraded=false` 可作为有效候选结果。结果只包含可公开的 Document/Build/Chunk 证据身份。
 
-## 4. 执行三轮可恢复评测
+## 4. 创建服务端冻结的三槽 Cohort
 
-对 `repetitionOrdinal` 依次使用 1、2、3：
+客户端只提交 Dataset 和固定 Target：
 
 ```http
-POST /api/evaluations/runs
+POST /api/evaluations/cohorts
 
 {
   "datasetVersionId": "edsv_...",
-  "retrievalTargetId": "evrt_...",
-  "metricPolicyId": "retmetric_ranked_v1",
-  "repetitionOrdinal": 1
+  "retrievalTargetId": "evrt_..."
 }
 ```
 
-轮询：
+禁止提交 `evaluationRunIds`、重复次数、Runner、稳定性策略或指标策略。服务端以实验身份内容寻址，在一个 `BEGIN IMMEDIATE` 中创建不可变 Cohort Intent、固定顺序 1/2/3 的三个槽位及其 Run Job；相同实验跨用户、Token 或重试都返回同一 Cohort，不能重抽样或挑选有利结果。
+
+轮询 Cohort：
 
 ```http
-GET /api/evaluations/runs/{evaluationRunId}
+GET /api/evaluations/cohorts/{evaluationCohortId}
 ```
 
-仅 `status=succeeded` 且响应含可验证的服务端 Report/Receipt 才算该轮完成。`invalid`、`failed`、权限代际变化、Publication 变化、降级检索或完整性错误都不能计入成功轮次。网络或 5xx 可按原请求幂等重试；4xx 应修正输入或停止。
+终态含义：
 
-当前阶段尚未公开 Candidate 激活 API。即使三轮成功，也只能报告“候选评测完成”；不得声称 Gate 已通过或候选已上线。
+- `sealed_stable`：三个固定槽位均成功，且完整有序 Top-50 证据身份投影一致；浮点分数和通道数组顺序不参与稳定性比较。
+- `sealed_unstable`：三个槽位均成功，但至少一轮有序证据身份不同。不得重建 Cohort 再试。
+- `failed` / `invalid`：任一槽失败或权限、发布、配置、完整性 Fence 失效；剩余槽会被围栏并产生签名终态回执。
+
+只有 `sealed_stable` 且服务端签名回执验证通过，才能报告“候选稳定性评测完成”。网络或 5xx 可按同一请求幂等重试；4xx 应修正输入或停止。`POST /api/evaluations/runs` 仅供管理员诊断单轮问题，不属于候选发布评测闭环，Skill 不得用它代替 Cohort。
+
+当前阶段尚未公开 Candidate 激活 API。即使 Cohort 为 `sealed_stable`，也只能报告“候选稳定性评测完成”；不得声称 Gate 已通过或候选已上线。

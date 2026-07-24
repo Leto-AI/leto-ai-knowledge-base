@@ -45,8 +45,9 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 2. 创建服务端登记的 Config-only Variant。请求中只提交 `retrievalConfigId`；不得提交 Tenant、文档闭集、Index Build、Namespace、Embedding Profile 或 ACL。
 3. 轮询 Variant；只有 `ready_not_active` 才能创建 Candidate Target。该状态只表示候选物理完整且仍未上线。遇到 `stale` 立即停止等待，重新创建绑定当前发布和索引闭集的 Variant。
 4. 使用 Dataset Version ID 和 `retrievalVariantId` 创建 Candidate Target。服务端冻结词法投影、向量 Pin、权限和发布闭集。
-5. 对固定 Target 执行查询或创建三个重复 Evaluation Run。必须保留每轮状态、签名 Receipt、`degraded=false` 和失败原因。
-6. 当前 Skill 不调用任何激活接口；重复运行成功也不代表 Gate 已通过。没有签名 Gate Decision 与一次性 Permit 时，向用户明确报告“仅完成候选评测”。
+5. 对固定 Target 只创建一个服务端 Cohort。不得自行创建三轮 Run，不得提交、挑选、替换或重抽 `evaluationRunId`；服务端会在一个事务中冻结恰好三个顺序槽位并执行可恢复评测。
+6. 轮询 Cohort。只有签名回执验证通过且 `status=sealed_stable` 才能报告“候选稳定性评测完成”；`sealed_unstable`、`failed`、`invalid` 都必须如实失败。`sealed_stable` 仍不等于 Gate 通过。
+7. 当前 Skill 不调用任何激活接口；没有签名 Gate Decision 与一次性 Permit 时，向用户明确报告“仅完成候选评测，尚未获准上线”。
 
 ## 图片语义分层（强制）
 

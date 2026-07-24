@@ -1,6 +1,6 @@
 ---
 name: leto-ai-knowledge-base
-description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdown、PDF、图片并提交到乐途智行的 leto AI 员工知识库，或按当前权限查询知识、检查文档实时索引状态。用于新建或更新文档、处理分页单元、登记图片语义、提交最终构建、检索已发布知识；直接调用 HTTP API，不要求安装乐途智行 CLI。
+description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdown、PDF、图片并提交到乐途智行的 leto AI 员工知识库，按当前权限查询知识、检查文档实时索引状态，或使用管理员 Token 创建并评测候选检索 Variant。用于新建或更新文档、处理分页单元、登记图片语义、提交最终构建、检索已发布知识、比较候选检索配置；直接调用 HTTP API，不要求安装乐途智行 CLI。
 ---
 
 # 乐途智行 · leto AI 员工知识库
@@ -13,7 +13,8 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 2. 不输出 Token，不把 Token 写入仓库、源文件、日志、Evidence 或最终回答。
 3. 提交/更新前携带 `Authorization: Bearer $LETU_KB_API_TOKEN` 请求 `GET /api/agent/v1/bootstrap`，按返回链接读取 capabilities、contract 和 schema；不要根据记忆猜接口。
 4. 查询或检查索引前读取 [references/retrieval-api.md](references/retrieval-api.md)，只使用 Token 实际拥有的 `kb:read` 权限；不得推测或扩展可见范围。
-5. 提交请求/响应示例见 [references/agent-api.md](references/agent-api.md)。
+5. 用户要求创建或评测候选检索配置时，读取 [references/evaluation-api.md](references/evaluation-api.md)。只有 `kb:admin` Token 和用户确认过的评测 Dataset 才能执行；候选就绪不等于获准上线。
+6. 提交请求/响应示例见 [references/agent-api.md](references/agent-api.md)。
 
 ## 闭环
 
@@ -37,6 +38,15 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 3. 若响应 `strategyApplied=lexical_only`，必须向用户保留 `degraded`、`degradation.reasonCode` 和 `retryable`；不得把降级结果伪装成向量检索成功。
 4. 只基于响应中的正文、来源和版本回答，不猜测未返回文档，不探测无权限 Document ID。
 5. 查询、逐文档索引状态和安全边界的完整契约见 [references/retrieval-api.md](references/retrieval-api.md)。
+
+## 候选检索评测闭环
+
+1. 先读取 [references/evaluation-api.md](references/evaluation-api.md)，列出已有的人工确认 Dataset；不要让客户端 AI 冒充人工审核人或自动把草稿标成 `approved`。
+2. 创建服务端登记的 Config-only Variant。请求中只提交 `retrievalConfigId`；不得提交 Tenant、文档闭集、Index Build、Namespace、Embedding Profile 或 ACL。
+3. 轮询 Variant；只有 `ready_not_active` 才能创建 Candidate Target。该状态只表示候选物理完整且仍未上线。
+4. 使用 Dataset Version ID 和 `retrievalVariantId` 创建 Candidate Target。服务端冻结词法投影、向量 Pin、权限和发布闭集。
+5. 对固定 Target 执行查询或创建三个重复 Evaluation Run。必须保留每轮状态、签名 Receipt、`degraded=false` 和失败原因。
+6. 当前 Skill 不调用任何激活接口；重复运行成功也不代表 Gate 已通过。没有签名 Gate Decision 与一次性 Permit 时，向用户明确报告“仅完成候选评测”。
 
 ## 图片语义分层（强制）
 

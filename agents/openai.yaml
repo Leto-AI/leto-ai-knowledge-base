@@ -1,7 +1,7 @@
 interface:
   display_name: "乐途智行 · leto AI 知识库"
-  short_description: "提交文档并授权检索 leto AI 知识库"
-  default_prompt: "Use $leto-ai-knowledge-base to submit the file I specify or query authorized knowledge through the leto AI APIs."
+  short_description: "提交、检索并评测 leto AI 知识库"
+  default_prompt: "Use $leto-ai-knowledge-base to submit my document, query authorized knowledge, or evaluate a candidate retrieval configuration."
 
 policy:
   allow_implicit_invocation: true

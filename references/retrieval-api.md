@@ -16,7 +16,22 @@ GET /api/agent/v1/schemas/retrieval-search/2.0
 GET /api/agent/v1/schemas/retrieval-index-status/1.0
 GET /api/agent/v1/schemas/retrieval-answer-request/1.0
 GET /api/agent/v1/schemas/retrieval-answer-response/2.0
+GET /api/agent/v1/schemas/package-summary/1.0
 ```
+
+## 发布包权威摘要
+
+发布完成后，不要靠检索命中数推断完整 Chunk 数。携带 Publication Receipt
+的三个精确快照参数调用：
+
+```http
+GET /api/documents/{documentId}/package-summary?expectedRevisionId=...&expectedContentBuildId=...&expectedPublicationGeneration=...
+```
+
+响应给出权威 Unit、Page、Asset、Occurrence、Block 和 Chunk 数量，以及
+Package、Normalized Document、Index 和 Chunk Schema 身份。缺少快照参数返回
+`CITATION_SNAPSHOT_REQUIRED`；版本已经推进返回
+`CITATION_SNAPSHOT_STALE`。遇到后者必须重新检索当前发布身份，不能模糊映射。
 
 ## 1. 混合或词法检索
 

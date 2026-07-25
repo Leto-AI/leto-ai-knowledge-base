@@ -14,6 +14,12 @@ Token 只能从安全环境读取，不得回显。所有 JSON 写请求使用 `
 `actions.submission.available=true` 时返回的提交协议。连接和重定向必须遵守
 [connection-security.md](connection-security.md)。
 
+登记图片前还必须读取
+`GET /api/agent/v1/schemas/asset-metadata/1.0`。`imageType` 的闭集为
+`photo`、`diagram`、`chart`、`screenshot`、`document`、
+`decorative`、`unknown`。不要提交 `table` 等未声明值；表格页面截图通常用
+`document`，用于表达统计关系的图表才用 `chart`。
+
 ## 1. 创建并上传源文件
 
 ```http

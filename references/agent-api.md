@@ -34,7 +34,7 @@ Idempotency-Key: source-<stable-id>
 }
 ```
 
-更新时改为 `operation=update_document` 并提供 `documentId`。主文件必须位于清单根目录；附件可以是安全相对路径。使用响应中每个 `uploads[].url`、`method` 和 `headers` 上传原始字节，不做 Base64。
+更新时改为 `operation=update_document` 并提供 `documentId`。主文件必须位于清单根目录；附件可以是安全相对路径。使用响应中每个 `uploads[].url`、`method` 和 `headers` 上传原始字节，不做 Base64。当前 URL 是同源相对路径，上传请求同时携带本页开头的通用 Bearer；若 URL 不是同源相对路径则按连接安全契约停止。
 
 完成后：
 
@@ -55,6 +55,8 @@ GET /api/agent/v1/work-orders/{workOrderId}/units/{unitId}/input
 ```
 
 Markdown Unit 已在 `input.text` 中提供正文。图片与 PDF page Unit 从 `/input` 获取服务端签发的图片字节。
+
+`units/next` 和 Unit detail 响应中的 `unitGeneration` 是当前并发控制代际。提交结果时必须将刚读取的精确值映射为请求字段 `expectedGeneration`。不要使用循环序号、客户端计数器或自行执行 `+1`；重试前若不确定，重新读取 Unit detail。
 
 处理图片或 PDF page 时必须把信息分成三层：
 
@@ -98,7 +100,7 @@ POST /api/agent/v1/work-orders/{workOrderId}/asset-uploads
 }
 ```
 
-按响应 URL 与 headers PUT 原始图片字节。上传响应返回正式 `assetId`。
+按响应 URL 与 headers PUT 原始图片字节，并携带通用 Bearer。上传响应返回正式 `assetId`。
 
 ### 上传处理 Evidence
 
@@ -116,7 +118,7 @@ POST /api/agent/v1/work-orders/{workOrderId}/evidence-uploads
 }
 ```
 
-使用响应中的 `method`、`url` 和 `headers` PUT 原始字节，不使用 Base64。支持的媒体、Evidence 类型、保留策略和 Work Order 级预算以 `GET /api/agent/v1/capabilities` 为准。服务端复验 Content-Type、大小、SHA-256、UTF-8/JSON/JSONL 或图片签名；相同上传对象可安全重试。
+使用响应中的 `method`、`url` 和 `headers` PUT 原始字节，并携带通用 Bearer，不使用 Base64。支持的媒体、Evidence 类型、保留策略和 Work Order 级预算以 `GET /api/agent/v1/capabilities` 为准。服务端复验 Content-Type、大小、SHA-256、UTF-8/JSON/JSONL 或图片签名；相同上传对象可安全重试。
 
 文件数、媒体类型、字节数、图片几何、Unit、Asset 和 Evidence 配额均由服务端强制执行；
 客户端不得通过拆分文件或篡改元数据绕过限制。每次处理前以
@@ -151,6 +153,9 @@ Idempotency-Key: unit-<unitId>-generation-<n>
   }
 }
 ```
+
+上例中的 `1` 只用于展示字段形状，必须替换为该 Unit 最近一次响应的
+`unitGeneration`，即 `unitGeneration → expectedGeneration`。
 
 错误示例：
 

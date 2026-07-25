@@ -17,8 +17,8 @@
 - API Path 必须相对于已经确认的 Origin 解析。
 - 携带 `Authorization` 的请求使用禁止自动重定向的模式。收到任何 3xx 都停止，并让用户核对服务地址。
 - 绝不向跨源地址发送或转发 `Authorization`。跨源包括协议、Host 或 Port 任一变化。
-- Agent API 当前返回的上传 URL 必须是以 `/` 开头的同源相对路径。若返回绝对 URL、`//host/path` 或其他 Origin，停止上传；不要猜测 OSS 地址，也不要自行复制 Authorization Header。
-- 只发送服务端明确返回的上传 Headers，不添加 Cookie、代理凭据或环境变量内容。
+- Agent API 当前返回的上传 URL 必须是以 `/` 开头的同源相对路径。若返回绝对 URL、`//host/path` 或其他 Origin，停止上传；不要猜测 OSS 地址。
+- 对已经校验为同源相对路径的上传请求，发送通用 `Authorization: Bearer $LETU_KB_API_TOKEN`，并合并服务端明确返回的上传 Headers。不要添加 Cookie、代理凭据或其他环境变量内容。若未来协议返回跨源上传 URL，必须停止并重新读取 Bootstrap/本安全契约，绝不能把 Authorization 复制到该地址。
 
 ## 安全失败
 

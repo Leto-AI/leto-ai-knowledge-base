@@ -10,6 +10,10 @@ Authorization: Bearer <LETU_KB_API_TOKEN>
 
 Token 只能从安全环境读取，不得回显。所有 JSON 写请求使用 `Content-Type: application/json`；创建、Unit result 和 finalization 使用稳定且不复用到其他载荷的 `Idempotency-Key`。
 
+所有任务先调用 `GET /api/agent/v1/bootstrap`，并只执行
+`actions.submission.available=true` 时返回的提交协议。连接和重定向必须遵守
+[connection-security.md](connection-security.md)。
+
 ## 1. 创建并上传源文件
 
 ```http
@@ -173,6 +177,10 @@ GET /api/agent/v1/work-orders/{workOrderId}
 GET /api/agent/v1/work-orders/{workOrderId}/summary
 ```
 
-`validation_queued` 只表示已进入服务端复验队列。继续轮询，直到 `published`、`rejected` 或 `superseded`。失败时保留错误码和有界诊断，修正当前 Work Order；不得宣称已经写入知识库。
+`validation_queued` 只表示已进入服务端复验队列。继续有界轮询，直到
+`published`、`rejected`、`validation_failed`、`superseded`、`cancelled` 或
+`expired`。后五种都是失败终态；保留错误码和有界诊断，不得宣称已经写入知识库。
+HTTP 410 表示 Work Order 已经过期，立即停止轮询，不复用旧 ID。只有
+`published` 且同时存在 Acceptance Receipt 与 Publication Receipt 才算成功。
 
 发布阶段由服务端确定性生成 `index/chunks.jsonl` 与 `index/manifest.json`，客户端 AI 不提交这两个文件。Index Manifest 是不可变 Content Package 的构建记录；其中的 `embeddingStatus` 不代表当前独立 Index Build 的实时状态。发布成功后保存 Publication Receipt 和 `documentId`，再按 [retrieval-api.md](retrieval-api.md) 查询实时索引。Work Order 属于临时处理流程，保留期结束后可能返回 410，不得依赖它作为长期状态入口。

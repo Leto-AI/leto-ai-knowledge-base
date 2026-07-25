@@ -9,6 +9,13 @@ Content-Type: application/json
 
 必须使用拥有 `kb:admin` 的 Token。Token、Tenant、ACL、Qdrant Collection、Vector Namespace、Index Build 闭集和服务端配置摘要不得出现在客户端输入、日志或回答中。
 
+每次任务先读取 `GET /api/agent/v1/bootstrap`。只有
+`actions.evaluation.available=true` 才能继续，并读取其指向的机器契约：
+
+```http
+GET /api/agent/v1/schemas/evaluation-api/1.0
+```
+
 ## 1. 使用已有评测 Dataset
 
 列出和读取 Dataset：
@@ -138,7 +145,11 @@ GET /api/evaluations/cohorts/{evaluationCohortId}
 - `sealed_unstable`：三个槽位均成功，但至少一轮有序证据身份不同。不得重建 Cohort 再试。
 - `failed` / `invalid`：任一槽失败或权限、发布、配置、完整性 Fence 失效；剩余槽会被围栏并产生签名终态回执。
 
-只有 `sealed_stable` 且服务端签名回执验证通过，才能报告“候选稳定性评测完成”。网络或 5xx 可按同一请求幂等重试；4xx 应修正输入或停止。`POST /api/evaluations/runs` 仅供管理员诊断单轮问题，不属于候选发布评测闭环，Skill 不得用它代替 Cohort。
+只有 `sealed_stable` 才能报告“候选稳定性评测完成”。终态详情返回 HTTP 200
+之前，服务端已经验证签名回执；回执完整性失败会返回 503，客户端不得把它解释为
+有效终态，也不得声称自己完成了密码学验签。网络或 5xx 可按同一请求幂等重试；
+4xx 应修正输入或停止。`POST /api/evaluations/runs` 仅供管理员诊断单轮问题，不属于
+候选发布评测闭环，Skill 不得用它代替 Cohort。
 
 ## 5. 登记与读取 Current Baseline
 

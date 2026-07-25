@@ -65,7 +65,7 @@ Target 身份只能来自当前授权检索响应或已读取的发布资料，�
 
 ## 2. 创建并等待 Variant
 
-当前公开候选配置：
+先从 Bootstrap 的 `actions.evaluation.retrievalConfigs` 读取当前服务端登记配置。下面的 ID 只展示请求结构，不得据此猜测线上版本：
 
 ```http
 POST /api/evaluations/retrieval-variants
@@ -116,7 +116,7 @@ POST /api/evaluations/retrieval-targets/{retrievalTargetId}/query
 }
 ```
 
-只有 `strategyApplied=hybrid_rrf` 且 `degraded=false` 可作为有效候选结果。结果只包含可公开的 Document/Build/Chunk 证据身份。
+只有 `strategyApplied=hybrid_rrf` 或 `hybrid_rrf_rerank` 且 `degraded=false` 可作为有效候选结果。Rerank 结果还必须返回固定 Profile 身份和 Rerank Rank/Score。结果只包含可公开的 Document/Build/Chunk 证据身份。
 
 ## 4. 创建服务端冻结的三槽 Cohort
 

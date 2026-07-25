@@ -42,6 +42,7 @@ Content-Type: application/json
 判断响应时遵守：
 
 - `strategyApplied=hybrid_rrf` 且 `degraded=false`：当前权限与发布快照上的混合检索成功。
+- `strategyApplied=hybrid_rrf_rerank` 且 `degraded=false`：固定融合候选又经过当前 Route 声明的 Rerank Profile；响应必须包含 `snapshot.rerankProfileId` 和每条结果的 `ranks.rerank`、`scores.rerank`。缺少任一字段均不能声称 Rerank 成功。
 - `strategyApplied=lexical_only` 且 `degraded=false`：调用方主动选择词法检索。
 - `strategyApplied=lexical_only` 且 `degraded=true`：Hybrid 已降级。向用户保留 `degradation.reasonCode` 和 `retryable`，不得称为语义/向量检索成功。
 - 只引用 `results` 返回的内容。`chunkSetId`、`contentBuildId`、`publicationGeneration` 和可选 `retrievalIndexBuildId` 用于版本追溯，不是授权凭据。

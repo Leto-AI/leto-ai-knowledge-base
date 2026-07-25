@@ -29,6 +29,8 @@ Authorization: Bearer <安全环境中的 Token>
 
 Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint 和机器 Schema。只调用 `available=true` 的 Action。
 
+实际 HTTP 调用必须使用[连接安全](references/connection-security.md)中的进程内凭据模式：运行时从环境变量读取 Token，禁止把展开值放入 `curl -H`、命令行参数或日志。异步任务严格按 Bootstrap 的 `pollingPolicy` 有界轮询；超时保留资源 ID 并报告仍在处理，不能擅自重建。
+
 ## 最小权限
 
 按任务分别签发 Token，不要日常共享管理员 Token：

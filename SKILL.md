@@ -12,6 +12,8 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 1. 从用户或安全环境取得服务地址 `LETU_KB_BASE_URL` 和 Bearer Token `LETU_KB_API_TOKEN`。不得猜测、硬编码或自行发现服务地址。连接前必须按 [references/connection-security.md](references/connection-security.md) 校验：生产地址只允许 HTTPS，HTTP 只允许 loopback/回环地址；URL 不得包含用户名、密码或 fragment；禁止跨源发送 Authorization。
 2. 不输出 Token，不把 Token 写入仓库、源文件、日志、Evidence 或最终回答。
 3. 每项任务都先携带 `Authorization: Bearer $LETU_KB_API_TOKEN` 请求 `GET /api/agent/v1/bootstrap`。该入口按当前 Token 的真实 Scope 返回 `actions` 和机器 Schema；只调用 `available=true` 的 Action，不根据记忆猜接口，也不尝试提升权限。
+4. HTTP 请求优先使用进程内 HTTP 客户端，并只在进程运行时从环境变量读取 Token 组装 Header；不得把 Token 展开到命令行参数、命令文本、进程列表或日志。具体安全执行方式见连接安全说明。
+5. 所有异步资源只按 Bootstrap 返回的 `pollingPolicy` 有界轮询：优先遵守 `Retry-After`，其次响应 `pollAfterMs`，再使用带抖动的退避默认值。达到 `maxElapsedMs` 发生轮询超时后，必须保留稳定资源 ID，报告“仍在处理”，不得判失败、重建或丢失恢复入口。
 4. 提交/更新前读取 Bootstrap 中 `actions.submission` 的 capabilities、contract 和 Unit Schema；请求/响应示例见 [references/agent-api.md](references/agent-api.md)。
 5. 查询、带证据回答或检查索引前读取 Bootstrap 返回的对应 Schema及 [references/retrieval-api.md](references/retrieval-api.md)，只使用 Token 实际拥有的 `kb:read` 权限；不得推测或扩展可见范围。
 6. 用户要求创建或评测候选检索配置时，读取 Bootstrap 中 `actions.evaluation.schema` 和 [references/evaluation-api.md](references/evaluation-api.md)。只有 `kb:admin` Token 和用户确认过的评测 Dataset 才能执行；候选就绪不等于获准上线。

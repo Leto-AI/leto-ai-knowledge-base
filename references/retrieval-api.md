@@ -29,8 +29,9 @@ GET /api/documents/{documentId}/package-summary?expectedRevisionId=...&expectedC
 ```
 
 响应给出权威 Unit、Page、Asset、Occurrence、Block 和 Chunk 数量，以及
-Package、Normalized Document、Index 和 Chunk Schema 身份。缺少快照参数返回
-`CITATION_SNAPSHOT_REQUIRED`；版本已经推进返回
+Package、Normalized Document、Index 和 Chunk Schema 身份。快照错误要区分：
+三项完全未提供返回 `CITATION_SNAPSHOT_REQUIRED`，只提供部分
+参数或格式错误返回 `CITATION_SNAPSHOT_INVALID`；版本已经推进返回
 `CITATION_SNAPSHOT_STALE`。遇到后者必须重新检索当前发布身份，不能模糊映射。
 
 ## 1. 混合或词法检索

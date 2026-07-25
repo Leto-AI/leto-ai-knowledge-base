@@ -51,7 +51,7 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 
 ## 候选检索评测闭环
 
-1. 先读取 [references/evaluation-api.md](references/evaluation-api.md)，列出已有的人工确认 Dataset；不要让客户端 AI 冒充人工审核人或自动把草稿标成 `approved`。
+1. 先读取 [references/evaluation-api.md](references/evaluation-api.md)，列出已有的人工确认 Dataset；不要让客户端 AI 冒充人工审核人或自动把草稿标成 `approved`。只有 Bootstrap 的 `actions.evaluation.available=true` 且 `runtimeReady=true` 才能创建 Variant、Target 或 Cohort；`runtimeReady=false` 时保留 `runtimeReasonCode` 并停止候选执行，Dataset 只读管理不等于检索运行时可用。
 2. 只从 Bootstrap 的 `actions.evaluation.retrievalConfigs` 选择服务端已登记配置，再创建 Config-only Variant。请求中只提交精确 `retrievalConfigId`；不得猜测、硬编码未返回的版本，也不得提交 Tenant、文档闭集、Index Build、Namespace、Embedding Profile 或 ACL。若列表为空，停止并报告没有可评测配置。
 3. 轮询 Variant；只有 `ready_not_active` 才能创建 Candidate Target。该状态只表示候选物理完整且仍未上线。遇到 `stale` 立即停止等待，重新创建绑定当前发布和索引闭集的 Variant。
 4. 使用 Dataset Version ID 和 `retrievalVariantId` 创建 Candidate Target。服务端冻结词法投影、向量 Pin、权限和发布闭集。

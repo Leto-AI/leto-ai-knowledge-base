@@ -67,6 +67,10 @@ Target 身份只能来自当前授权检索响应或已读取的发布资料，�
 
 先从 Bootstrap 的 `actions.evaluation.retrievalConfigs` 读取当前服务端登记配置。下面的 ID 只展示请求结构，不得据此猜测线上版本：
 
+创建任何 Variant 前还必须确认 `actions.evaluation.runtimeReady=true`。若为
+`false`，保留 `runtimeReasonCode` 并停止；不要轮询、重建或把“Endpoint 已授权”
+误报成“评测运行时可用”。Dataset 的查看与人工审核可以独立进行。
+
 ```http
 POST /api/evaluations/retrieval-variants
 

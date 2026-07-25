@@ -46,9 +46,29 @@ Content-Type: application/json
 - `strategyApplied=lexical_only` 且 `degraded=false`：调用方主动选择词法检索。
 - `strategyApplied=lexical_only` 且 `degraded=true`：Hybrid 已降级。向用户保留 `degradation.reasonCode` 和 `retryable`，不得称为语义/向量检索成功。
 - 只引用 `results` 返回的内容。`chunkSetId`、`contentBuildId`、`publicationGeneration` 和可选 `retrievalIndexBuildId` 用于版本追溯，不是授权凭据。
-- 每条结果的 `citationAnchors` 是服务端生成并复验的精确坐标。若要引用或定位，
-  只能原样使用其中的 `anchorId`；不得自行生成或修改 `blockId`、`renderOrdinal`、
-  `occurrenceId`、字符范围或来源位置。
+- 每条结果的 `citationAnchors` 是服务端生成并复验的候选坐标；只有响应同时给出
+  `primaryAnchorId` 时，它才表示查询原文确实落在该 Anchor 内，可以提供“精确定位”
+  操作。`primaryAnchorId` 缺失时只能打开文档，不能擅自挑选第一个 Anchor。
+- 标题命中没有正文坐标，不能声称精确定位。混合检索命中但没有字面匹配时也不得
+  把整个 Chunk 或相似段落伪装成查询原文所在位置。
+- 使用坐标时只能原样使用其中的 `anchorId`；不得自行生成或修改 `blockId`、
+  `renderOrdinal`、`occurrenceId`、字符范围或来源位置。
+
+### 打开引用时锁定发布快照
+
+检索结果与 Answer Citation 都包含 `revisionId`、`contentBuildId` 和
+`publicationGeneration`。读取文档详情或包内文件时必须把这三个值完整带回：
+
+```http
+GET /api/documents/{documentId}?expectedRevisionId={revisionId}&expectedContentBuildId={contentBuildId}&expectedPublicationGeneration={publicationGeneration}
+
+GET /api/documents/{documentId}/package/document.md?expectedRevisionId={revisionId}&expectedContentBuildId={contentBuildId}&expectedPublicationGeneration={publicationGeneration}
+```
+
+三项缺一或格式错误会返回 `400 CITATION_SNAPSHOT_INVALID`。若文档已发布新版本，
+服务端返回 `409 CITATION_SNAPSHOT_STALE`；此时必须重新检索，再展示新证据，不能把
+旧 Anchor 在新文档里做模糊重映射。Anchor 定位失败时也只能提示重新检索，不能静默
+退回文本搜索后仍称为精确引用。
 
 不得把问题放在旧式 `GET /api/search?q=...` 中；URL 可能进入代理、浏览器和访问日志。
 

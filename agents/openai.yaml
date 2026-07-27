@@ -1,7 +1,7 @@
 interface:
   display_name: "乐途智行 · leto AI 知识库"
-  short_description: "提交、检索、带证据回答并评测 leto AI 知识库"
-  default_prompt: "Use $leto-ai-knowledge-base to discover my authorized actions, submit a document, query or answer from authorized evidence, check live index status, or evaluate a candidate retrieval configuration."
+  short_description: "提交、检索、诊断、带证据回答并评测 leto AI 知识库"
+  default_prompt: "Use $leto-ai-knowledge-base to discover my authorized actions, submit a document, query or diagnose authorized retrieval, check live index status, or evaluate a candidate retrieval configuration."
 
 policy:
   allow_implicit_invocation: true

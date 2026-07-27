@@ -1,6 +1,6 @@
 ---
 name: leto-ai-knowledge-base
-description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdown、PDF、图片并提交到乐途智行的 leto AI 员工知识库，按当前权限查询知识、检查文档实时索引状态，或使用管理员 Token 创建并评测候选检索 Variant。用于新建或更新文档、处理分页单元、登记图片语义、提交最终构建、检索已发布知识、比较候选检索配置；直接调用 HTTP API，不要求安装乐途智行 CLI。
+description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdown、PDF、图片并提交到乐途智行的 leto AI 员工知识库，按当前权限查询知识、检查文档实时索引状态，或使用管理员 Token 诊断一次授权检索、创建并评测候选检索 Variant。用于新建或更新文档、处理分页单元、登记图片语义、提交最终构建、检索已发布知识、排查召回/融合/精排、比较候选检索配置；直接调用 HTTP API，不要求安装乐途智行 CLI。
 ---
 
 # 乐途智行 · leto AI 员工知识库
@@ -15,7 +15,7 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 4. HTTP 请求优先使用进程内 HTTP 客户端，并只在进程运行时从环境变量读取 Token 组装 Header；不得把 Token 展开到命令行参数、命令文本、进程列表或日志。具体安全执行方式见连接安全说明。
 5. 所有异步资源只按 Bootstrap 返回的 `pollingPolicy` 有界轮询：优先遵守 `Retry-After`，其次响应 `pollAfterMs`，再使用带抖动的退避默认值。达到 `maxElapsedMs` 发生轮询超时后，必须保留稳定资源 ID，报告“仍在处理”，不得判失败、重建或丢失恢复入口。
 6. 提交/更新前读取 Bootstrap 中 `actions.submission.apiContract` 和 `actions.submission.schemaBundle`，按 Contract 的 `operationId`、Header、媒体类型和 Schema Ref 驱动流程；每个 JSON 请求在发送前校验，每个 JSON 成功响应在采用前校验。再读取 capabilities、内容构建 contract 和 `/api/agent/v1/schemas/asset-metadata/1.0`；不得依赖 Skill 中示例猜接口。Schema 端点可能返回含 `endpoint`、`request`、`response` 的契约封套；只能把对应的 `request` 或 `response` 子对象交给 JSON Schema Validator，不能把整个封套当作业务响应 Schema。细则见 [references/agent-api.md](references/agent-api.md)。
-7. 浏览知识库、查询、带证据回答、打开来源页或检查索引前读取 Bootstrap 返回的对应 Schema 及 [references/retrieval-api.md](references/retrieval-api.md)，包括 `actions.documents`、`/api/agent/v1/schemas/document-list/1.0` 和 Citation Source Schema；只使用 Token 实际拥有的 `kb:read` 权限，不得推测或扩展可见范围。检索 Search Chunk 是服务端为 RAG 生成的派生投影，可能包含 Asset 的 `visibleText`；它不是 Canonical Markdown，绝不能被写回文档正文。
+7. 浏览知识库、查询、诊断一次检索、带证据回答、打开来源页或检查索引前读取 Bootstrap 返回的对应 Schema 及 [references/retrieval-api.md](references/retrieval-api.md)，包括 `actions.documents`、可选的 `actions.searchDiagnostics`、Document List 和 Citation Source Schema；只使用 Token 实际拥有的权限，不得推测或扩展可见范围。检索 Search Chunk 是服务端为 RAG 生成的派生投影，可能包含 Asset 的 `visibleText`；它不是 Canonical Markdown，绝不能被写回文档正文。
 8. 用户要求创建评测 Draft 时读取 Bootstrap 的 `actions.evaluationDraft`；要求运行候选检索评测时读取 `actions.evaluation` 和 [references/evaluation-api.md](references/evaluation-api.md)。分别只在当前 Token 具备 `evaluation:draft` 与 `evaluation:operate` 时执行。Skill 永远不要求或使用 `evaluation:review`，也不调用人工 Review/Publish；候选就绪不等于获准上线。
 
 ## 闭环
@@ -45,6 +45,8 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 8. `citationRef` 返回 404 时按失效、篡改或无权限统一处理，返回 409 时按发布版本已推进处理；两者都必须重新检索取得新引用，不能枚举、猜测或模糊映射来源页。
 9. 查询、来源页、逐文档索引状态和安全边界的完整契约见 [references/retrieval-api.md](references/retrieval-api.md)。
 10. 只基于响应中的正文、来源和版本回答，不猜测未返回文档，不探测无权限 Document ID。
+11. 只有用户明确要求排查一次检索，并且 Bootstrap 返回 `actions.searchDiagnostics.available=true` 时，才读取它的 `schema` 并调用它声明的管理员端点。只提交 `query`、`strategy`、`limit`、`allowDegraded`；不得提交 Tenant、Principal、Group、Namespace、Collection、Index/Profile 或 Provider 字段。请求与响应分别通过 Schema 的 `.request`、`.response` 校验。
+12. 检索诊断必须由一次明确提交触发，不能在用户逐字输入时循环调用。只把五阶段数量解释为当前 Principal 已授权闭集；不得据此推断全库规模、被 ACL 过滤数量或隐藏文档。`skipped`、`degraded` 和稳定 `reasonCode` 必须如实保留；诊断响应中的证据仍适用全部零信任规则。
 
 ## 带证据回答闭环
 

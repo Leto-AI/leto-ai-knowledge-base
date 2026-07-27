@@ -4,6 +4,7 @@
 
 - 客户端 AI 解析并提交 Markdown、PDF 和图片；
 - 按当前权限查询知识和检查实时索引；
+- 由获授权的 Human 管理员诊断一次检索的召回、融合、精排与降级；
 - 使用服务端带证据回答能力；
 - 从检索或回答的短时不透明引用安全核对原始来源页；
 - 提交不可变评测 Draft，并用服务端解析的正文、图片和描述做客户端自检；
@@ -40,6 +41,7 @@ Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint
 | 任务 | 最小 Scope |
 | --- | --- |
 | 只读检索、授权文档目录、实时索引、带证据回答 | `kb:read` |
+| 单次授权检索诊断 | `retrieval:diagnose` + Human Actor |
 | 客户端提交与发布后自检 | `kb:read`、`agent:read`、`agent:write` |
 | 提交并自检自己创建的评测 Draft | `evaluation:draft` |
 | 运行 Variant、Target、Cohort、Baseline | `evaluation:operate` |

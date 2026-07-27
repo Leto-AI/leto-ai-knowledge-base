@@ -13,6 +13,7 @@ Token 只能从安全环境读取，不得回显、记录或写入仓库。服�
 
 ```http
 GET /api/agent/v1/schemas/retrieval-search/2.0
+GET /api/agent/v1/schemas/document-list/1.0
 GET /api/agent/v1/schemas/retrieval-index-status/1.0
 GET /api/agent/v1/schemas/retrieval-answer-request/1.0
 GET /api/agent/v1/schemas/retrieval-answer-response/3.0
@@ -25,6 +26,31 @@ GET /api/agent/v1/schemas/citation-source/1.0
 `.request`、响应校验编译 `.response`；`retrieval-index-status/1.0` 的响应校验编译
 `.response`。如果根对象本身就是标准 JSON Schema，才编译根对象。不得把整个契约
 封套拿去验证 Search 或 Index Status 的响应。
+
+## 授权文档目录
+
+用户要求查看知识库有哪些文档、选择一个已有文档，或批量核对实时索引时，只有
+Bootstrap 返回 `actions.documents.available=true` 才能调用。先读取 Action 的
+`responseSchema`，对返回封套的 `.response` 编译 JSON Schema，再请求：
+
+```http
+GET /api/documents?limit=50&status=published
+```
+
+不要自行猜测端点。实际 Method、Endpoint、最大页大小和状态枚举以
+`actions.documents` 为准。响应包含 `items`、`nextCursor`、`hasMore` 和
+`snapshot`：
+
+- `items` 只包含当前 Tenant、Principal、组、角色及文档策略共同允许读取的文档。
+  未返回的 Document 不得被解释为不存在，也不得换 ID、Scope 或接口探测。
+- `nextCursor` 是绑定授权上下文、筛选条件和目录快照的不透明游标。只能原样传回
+  同一端点，不解析、不修改、不写入长期存储，也不得跨 Token、Principal 或筛选
+  条件复用。
+- `hasMore=true` 时用同一 Token、同一 `status` 和相同 `limit` 请求下一页；
+  `hasMore=false` 才表示当前授权快照遍历完成。不得根据页大小自行判断结束。
+- `snapshot` 用于说明当前页属于哪个稳定目录视图，不是分页参数或授权凭据。
+- 400 表示分页或游标无效。停止使用该游标并从第一页重新读取；不得构造替代游标。
+- 每页响应都必须先通过 `document-list/1.0` 的 `.response` 校验，才可展示或继续。
 
 ## 发布包权威摘要
 

@@ -39,13 +39,16 @@ Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint
 
 | 任务 | 最小 Scope |
 | --- | --- |
-| 查询、实时索引、带证据回答 | `kb:read` |
-| 文档提交与状态读取 | `agent:read`、`agent:write` |
+| 只读检索、授权文档目录、实时索引、带证据回答 | `kb:read` |
+| 客户端提交与发布后自检 | `kb:read`、`agent:read`、`agent:write` |
 | 提交并自检自己创建的评测 Draft | `evaluation:draft` |
 | 运行 Variant、Target、Cohort、Baseline | `evaluation:operate` |
 | 签发上线 Gate/Permit | 普通 Skill 不应持有；需独立 `evaluation:activate` |
 
-如果同一次任务同时需要多个能力，可以组合 Scope；Bootstrap 会反映实际可用范围。
+为只读 UAT 与客户端提交分别签发 Token；不得把管理员 Token 交给公开 Skill。公开
+Skill 的常规 Token 不应包含 `kb:admin`、`evaluation:review` 或
+`evaluation:activate`。如果同一次任务确实需要多个普通能力，可以组合最小 Scope；
+Bootstrap 会反映实际可用范围。
 
 ## 安全边界
 

@@ -195,3 +195,9 @@ HTTP 410 表示 Work Order 已经过期，立即停止轮询，不复用旧 ID�
 `published` 且同时存在 Acceptance Receipt 与 Publication Receipt 才算成功。
 
 发布阶段由服务端确定性生成 `index/chunks.jsonl` 与 `index/manifest.json`，客户端 AI 不提交这两个文件。Index Manifest 是不可变 Content Package 的构建记录；其中的 `embeddingStatus` 不代表当前独立 Index Build 的实时状态。发布成功后保存 Publication Receipt 和 `documentId`，再按 [retrieval-api.md](retrieval-api.md) 查询实时索引。Work Order 属于临时处理流程，保留期结束后可能返回 410，不得依赖它作为长期状态入口。
+
+Publication Receipt 的发布代际字段名是 `generation`。调用
+`package-summary` 或版本锁定读取接口时，必须把它原样放入
+`expectedPublicationGeneration`；Search/Answer Citation 返回同一发布身份时字段名为
+`publicationGeneration`。这三个名字属于不同接口的明确契约，不能自行猜测、重命名或
+使用 Work Order/Unit 的 generation 替代。

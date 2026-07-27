@@ -30,7 +30,7 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 8. 如果解析、OCR、视觉或编辑过程产生了有追溯价值且用户授权提交的 Evidence，先创建 `/evidence-uploads`，再按返回的 URL 与 headers PUT 原始字节。只允许 capabilities 声明的媒体、类型和保留策略；不要上传源文件副本、Token、环境文件、日志全集、脚本、可执行文件、归档或网络抓包。`build_lifetime` 随正式包保留，`temporary` 不进入发布包。
 9. 提交 Unit result 时，把 Unit 响应中的精确 `unitGeneration` 原样写入请求的 `expectedGeneration`；不得猜测、递增或复用旧代际。所有 Unit 完成后创建 finalization，轮询 Work Order。只有 `status=published` 和 Publication Receipt 才算成功；`rejected`、`validation_failed`、`superseded`、`cancelled` 和 `expired` 都是失败终态，立即停止轮询并保留稳定错误码。HTTP 410 表示 Work Order 已过期，同样停止，不能重新猜测或复用旧 ID。
 10. 客户端不生成、不提交 Chunk 或 Embedding。发布成功后保存 Publication Receipt 中的 `documentId`；Work Order 是临时流程对象，过期后可返回 410，不能作为长期文档标识。
-11. 发布后用 Receipt 的精确 Revision、Build、Publication Generation 调用 `GET /api/documents/{documentId}/package-summary`，获得权威 Unit/Page/Asset/Occurrence/Block/Chunk 数量和 Schema 身份；不得用搜索观察到的 Chunk 数冒充全量。文档包中的 `embeddingStatus` 不是实时向量状态，仍必须用 `GET /api/documents/{documentId}/retrieval-index` 判断当前发布版本是否可向量查询。
+11. 发布后用 Publication Receipt 的 `revisionId`、`contentBuildId` 和 `generation` 调用 `GET /api/documents/{documentId}/package-summary`；其中 Receipt 的 `generation` 必须原样作为查询参数 `expectedPublicationGeneration`，后续检索响应中的同一身份字段名为 `publicationGeneration`。权威摘要给出 Unit/Page/Asset/Occurrence/Block/Chunk 数量和 Schema 身份；不得用搜索观察到的 Chunk 数冒充全量。文档包中的 `embeddingStatus` 不是实时向量状态，仍必须用 `GET /api/documents/{documentId}/retrieval-index` 判断当前发布版本是否可向量查询。
 12. 4xx 时按稳定错误码修正当前 Work Order；不要绕过校验、读取服务端源码或密钥。5xx/网络中断可使用相同幂等键重试。
 
 ## 查询闭环

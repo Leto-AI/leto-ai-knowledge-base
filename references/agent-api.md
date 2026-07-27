@@ -14,6 +14,13 @@ Token 只能从安全环境读取，不得回显。所有 JSON 写请求使用 `
 `actions.submission.available=true` 时返回的提交协议。连接和重定向必须遵守
 [connection-security.md](connection-security.md)。
 
+必须先读取 `actions.submission.apiContract` 与
+`actions.submission.schemaBundle`。Contract 是完整操作目录，Schema Bundle 是请求和
+响应结构的唯一机器来源。按 `workflow` 中的 `operationId` 执行；发送 JSON 前用
+`requestSchemaRef` 校验，收到成功 JSON 后用对应 `responseSchemaRef` 校验。二进制请求
+按 `binaryRequest`、声明时的字节数/SHA-256，以及服务端返回的固定 Header 执行。Schema
+失败时不得猜字段或继续下一阶段，应保留响应和稳定错误码后纠正当前请求。
+
 登记图片前还必须读取
 `GET /api/agent/v1/schemas/asset-metadata/1.0`。`imageType` 的闭集为
 `photo`、`diagram`、`chart`、`screenshot`、`document`、
@@ -60,7 +67,8 @@ GET /api/agent/v1/work-orders/{workOrderId}/units/{unitId}
 GET /api/agent/v1/work-orders/{workOrderId}/units/{unitId}/input
 ```
 
-Markdown Unit 已在 `input.text` 中提供正文。图片与 PDF page Unit 从 `/input` 获取服务端签发的图片字节。
+Markdown Unit 已在 `input.text` 中提供正文。图片与 PDF page Unit 使用响应中的同源
+`input.inputUrl` 获取服务端签发的图片字节；不得假设或请求服务端 Workspace 路径。
 
 `units/next` 和 Unit detail 响应中的 `unitGeneration` 是当前并发控制代际。提交结果时必须将刚读取的精确值映射为请求字段 `expectedGeneration`。不要使用循环序号、客户端计数器或自行执行 `+1`；重试前若不确定，重新读取 Unit detail。
 
@@ -72,25 +80,10 @@ Markdown Unit 已在 `input.text` 中提供正文。图片与 PDF page Unit 从 
 
 禁止把 `visibleText` 或 OCR 逐字稿作为 paragraph 提交。服务端可以校验结构与引用，但不会调用模型替客户端判断正文是否具有语义价值，因此客户端 AI 必须在提交前完成这项检查。
 
-### 登记服务端已有图片
+### 登记正式图片
 
-`sourcePath` 必须原样取自 Unit 的 `input.sourcePath` 或 `input.pageImagePath`：
-
-```http
-POST /api/agent/v1/work-orders/{workOrderId}/assets
-
-{
-  "sourcePath": "authoring/inputs/page-0001.jpg",
-  "detailedDescription": "完整、具体且可独立理解的图片描述",
-  "visibleText": "图片内可见文字；没有则为空字符串",
-  "imageType": "document",
-  "sourceSha256": "sha256:<对应 sourceSlices 的哈希>"
-}
-```
-
-### 上传客户端裁剪或生成的正式图片
-
-先声明：
+原始图片、PDF 页图、客户端裁剪图或生成图统一先声明。若使用 Unit 原图，先从
+`input.inputUrl` 下载字节，再原样上传；不要传服务端内部路径：
 
 ```http
 POST /api/agent/v1/work-orders/{workOrderId}/asset-uploads

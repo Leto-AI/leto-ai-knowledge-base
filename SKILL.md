@@ -14,8 +14,8 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 3. 每项任务都先携带 `Authorization: Bearer $LETU_KB_API_TOKEN` 请求 `GET /api/agent/v1/bootstrap`。该入口按当前 Token 的真实 Scope 返回 `actions` 和机器 Schema；只调用 `available=true` 的 Action，不根据记忆猜接口，也不尝试提升权限。
 4. HTTP 请求优先使用进程内 HTTP 客户端，并只在进程运行时从环境变量读取 Token 组装 Header；不得把 Token 展开到命令行参数、命令文本、进程列表或日志。具体安全执行方式见连接安全说明。
 5. 所有异步资源只按 Bootstrap 返回的 `pollingPolicy` 有界轮询：优先遵守 `Retry-After`，其次响应 `pollAfterMs`，再使用带抖动的退避默认值。达到 `maxElapsedMs` 发生轮询超时后，必须保留稳定资源 ID，报告“仍在处理”，不得判失败、重建或丢失恢复入口。
-6. 提交/更新前读取 Bootstrap 中 `actions.submission.apiContract` 和 `actions.submission.schemaBundle`，按 Contract 的 `operationId`、Header、媒体类型和 Schema Ref 驱动流程；每个 JSON 请求在发送前校验，每个 JSON 成功响应在采用前校验。再读取 capabilities、内容构建 contract 和 `/api/agent/v1/schemas/asset-metadata/1.0`；不得依赖 Skill 中示例猜接口。细则见 [references/agent-api.md](references/agent-api.md)。
-7. 查询、带证据回答、打开来源页或检查索引前读取 Bootstrap 返回的对应 Schema 及 [references/retrieval-api.md](references/retrieval-api.md)，包括 `/api/agent/v1/schemas/citation-source/1.0`；只使用 Token 实际拥有的 `kb:read` 权限，不得推测或扩展可见范围。
+6. 提交/更新前读取 Bootstrap 中 `actions.submission.apiContract` 和 `actions.submission.schemaBundle`，按 Contract 的 `operationId`、Header、媒体类型和 Schema Ref 驱动流程；每个 JSON 请求在发送前校验，每个 JSON 成功响应在采用前校验。再读取 capabilities、内容构建 contract 和 `/api/agent/v1/schemas/asset-metadata/1.0`；不得依赖 Skill 中示例猜接口。Schema 端点可能返回含 `endpoint`、`request`、`response` 的契约封套；只能把对应的 `request` 或 `response` 子对象交给 JSON Schema Validator，不能把整个封套当作业务响应 Schema。细则见 [references/agent-api.md](references/agent-api.md)。
+7. 查询、带证据回答、打开来源页或检查索引前读取 Bootstrap 返回的对应 Schema 及 [references/retrieval-api.md](references/retrieval-api.md)，包括 `/api/agent/v1/schemas/citation-source/1.0`；只使用 Token 实际拥有的 `kb:read` 权限，不得推测或扩展可见范围。检索 Search Chunk 是服务端为 RAG 生成的派生投影，可能包含 Asset 的 `visibleText`；它不是 Canonical Markdown，绝不能被写回文档正文。
 8. 用户要求创建评测 Draft 时读取 Bootstrap 的 `actions.evaluationDraft`；要求运行候选检索评测时读取 `actions.evaluation` 和 [references/evaluation-api.md](references/evaluation-api.md)。分别只在当前 Token 具备 `evaluation:draft` 与 `evaluation:operate` 时执行。Skill 永远不要求或使用 `evaluation:review`，也不调用人工 Review/Publish；候选就绪不等于获准上线。
 
 ## 闭环
@@ -76,6 +76,7 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 - `localBlocks` 只写面向人工阅读和 RAG 的语义正文：提炼事实、关系、结论、流程和业务含义。PDF 每页通常整理为标题和 1–3 个连贯语义段落，再放置相关图片。
 - `caption` 和 `originalAltText` 只写简洁图片名称或题注，不承载 OCR 全文。
 - 不得将 `visibleText`、OCR 逐字稿或近似转录写入 `localBlocks`、`caption`、`originalAltText` 或最终 Markdown。不要在语义段落之后追加一段图片文字抄录。
+- 服务端可以把 `visibleText` 与 `detailedDescription` 投影进 Search Chunk，以便检索图片文字和语义；该 Chunk 是只读检索证据，不代表 OCR 已写入 Canonical Markdown。客户端不得把 Search/Answer 返回的投影内容回填到 `localBlocks` 或 Markdown。
 - 提交 Unit result 前执行自检：正文是否在解释“这部分知识讲了什么、为什么重要”，而不是逐字抄图片；是否与 `visibleText` 大段重复。若是，先重写为语义表达，再提交。
 
 ## 不可越过的边界

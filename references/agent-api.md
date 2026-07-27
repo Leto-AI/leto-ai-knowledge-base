@@ -21,6 +21,19 @@ Token 只能从安全环境读取，不得回显。所有 JSON 写请求使用 `
 按 `binaryRequest`、声明时的字节数/SHA-256，以及服务端返回的固定 Header 执行。Schema
 失败时不得猜字段或继续下一阶段，应保留响应和稳定错误码后纠正当前请求。
 
+独立 Schema 端点有两种返回形状，必须先看返回对象本身：
+
+- 若根对象就是标准 JSON Schema（例如具有 `type`、`oneOf`、`$ref` 等关键字），
+  直接编译根对象。
+- 若根对象是契约封套，并包含 `endpoint`、`request`、`response`，发送请求时只编译
+  `request`，验证成功响应时只编译 `response`。例如
+  `retrieval-search/2.0` 的请求 Schema 是 `.request`、响应 Schema 是 `.response`；
+  `retrieval-index-status/1.0` 只有响应，因此编译 `.response`。
+
+不要把带 `endpoint` 的整个契约封套交给 Ajv 等 Validator 来验证业务 JSON；那只会
+验证“契约文档”的形状，不能证明 API 响应符合业务 Schema。Schema 中的 `$ref` 必须
+仍按同一个 Bundle/文档解析，不能手工删除。
+
 登记图片前还必须读取
 `GET /api/agent/v1/schemas/asset-metadata/1.0`。`imageType` 的闭集为
 `photo`、`diagram`、`chart`、`screenshot`、`document`、
@@ -79,6 +92,9 @@ Markdown Unit 已在 `input.text` 中提供正文。图片与 PDF page Unit 使�
 - `localBlocks`：整理后的知识正文，只保留适合人工阅读和 RAG 的事实、关系、流程、结论与业务含义。
 
 禁止把 `visibleText` 或 OCR 逐字稿作为 paragraph 提交。服务端可以校验结构与引用，但不会调用模型替客户端判断正文是否具有语义价值，因此客户端 AI 必须在提交前完成这项检查。
+发布后服务端为了 RAG 召回，可以把 Asset 的 `visibleText` 和
+`detailedDescription` 投影进 `index/chunks.jsonl` 或 Search Chunk。该派生投影不是
+`document.md`，客户端不得将它回写为 Unit paragraph、`localBlocks` 或 Markdown。
 
 ### 登记正式图片
 

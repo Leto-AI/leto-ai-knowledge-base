@@ -53,6 +53,9 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 5. 保存响应中的 `answerRunId`。需要复查时使用 Bootstrap 声明的历史/详情端点；
    需要评价时调用对应反馈端点。不得生成、修改或枚举 Answer Run ID；历史返回
    404 时统一按当前不可见处理。
+6. 历史列表、详情、反馈请求和反馈响应也必须分别通过 Bootstrap 的
+   `historyResponseSchema`、`detailResponseSchema`、`feedbackRequestSchema`
+   和 `feedbackResponseSchema` 校验；不能只校验首次 Answer 响应后就猜测后续字段。
 
 ## 候选检索评测闭环
 

@@ -102,6 +102,12 @@ Content-Type: application/json
 - `strategyApplied=hybrid_rrf_rerank` 且 `degraded=false`：固定融合候选又经过当前 Route 声明的 Rerank Profile；响应必须包含 `snapshot.rerankProfileId` 和每条结果的 `ranks.rerank`、`scores.rerank`。缺少任一字段均不能声称 Rerank 成功。
 - `strategyApplied=lexical_only` 且 `degraded=false`：调用方主动选择词法检索。
 - `strategyApplied=lexical_only` 且 `degraded=true`：Hybrid 已降级。向用户保留 `degradation.reasonCode` 和 `retryable`，不得称为语义/向量检索成功。
+- `snapshot.routeGeneration` 是这次查询实际使用的租户 Route 代次。当前 Route
+  来自已激活 Candidate 时，响应还会给出 `snapshot.candidateVariantId` 和
+  `snapshot.activationReceiptDigest`。三者只用于同一个 Gate Decision 的激活
+  交叉核验，不是授权凭据；不得解析、修改、枚举或据此构造内部 Permit/Plan。
+  只有 [评测 API](evaluation-api.md) 定义的三字段精确匹配成立时，才能宣称某个
+  Candidate 已上线并被实时查询使用。
 - 只引用 `results` 返回的内容。`chunkSetId`、`contentBuildId`、`publicationGeneration` 和可选 `retrievalIndexBuildId` 用于版本追溯，不是授权凭据。
 - 每条结果的 `citationAnchors` 是服务端生成并复验的候选坐标；只有响应同时给出
   `primaryAnchorId` 时，它才表示查询原文确实落在该 Anchor 内，可以提供“精确定位”

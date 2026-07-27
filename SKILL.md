@@ -69,9 +69,9 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 4. 使用 Dataset Version ID 和 `retrievalVariantId` 创建 Candidate Target。服务端冻结词法投影、向量 Pin、权限和发布闭集。
 5. 对固定 Target 只创建一个服务端 Cohort。不得自行创建三轮 Run，不得提交、挑选、替换或重抽 `evaluationRunId`；服务端会在一个事务中冻结恰好三个顺序槽位并执行可恢复评测。
 6. 轮询 Cohort。只有签名回执验证通过且 `status=sealed_stable` 才能报告“候选稳定性评测完成”；`sealed_unstable`、`failed`、`invalid` 都必须如实失败。`sealed_stable` 仍不等于 Gate 通过。
-7. Candidate Cohort 稳定后读取 Current Baseline 的最新 `generation`。只有 Bootstrap 明确返回 `actions.evaluation.gateDecisionAvailable=true`，并且用户明确要求执行上线门禁时，才可按文档创建签名 Gate Decision；该调用需要 Skill 默认不持有的 `evaluation:activate`。只能根据服务端返回的 `PASS`、`FAIL` 或 `INVALID` 报告，不自行计算或改写指标；`PASS` Permit 仍需服务端 Worker 完成消费才算实际上线。
+7. Candidate Cohort 稳定后读取 Current Baseline 的最新 `generation`。只有 Bootstrap 明确返回 `actions.evaluation.gateDecisionAvailable=true`，并且用户明确要求执行上线门禁时，才可按文档创建签名 Gate Decision；该调用需要 Skill 默认不持有的 `evaluation:activate`。只能根据服务端返回的 `PASS`、`FAIL` 或 `INVALID` 报告，不自行计算或改写指标；`PASS` Permit 仍需服务端 Worker 完成消费才算实际上线。每次 Decision GET 都必须先通过 Evaluation Schema 的 `gateDecisionDetailResponse` 校验。Decision 为 `PASS` 时继续轮询同一个 Decision 详情，但只能有界等待；`activation.status=pending` 时只报告“门禁通过、等待服务端激活”。
 8. Current Baseline 与 Candidate 评测严格分离。只有用户明确要求登记线上基准时，才可用 Current Target 的 `sealed_stable` Cohort 和当前 `generation` 执行 Baseline CAS；Candidate Target 永远不能直接成为 Current Baseline。
-9. 当前 Skill 没有独立激活接口，也不得索取 `evaluation:activate`。即使由有权 Actor 创建的 Gate Decision 为 `PASS`，没有服务端一次性 Permit 和 Route 激活回执时，也必须明确报告“候选已通过门禁，但尚未上线”。
+9. 当前 Skill 没有独立激活接口，也不得为了轮询而索取或扩大 `evaluation:activate`。只有同一 Decision 详情返回 `activation.status=active`，并且紧接着一次非降级 Search 的 `snapshot.routeGeneration`、`snapshot.candidateVariantId`、`snapshot.activationReceiptDigest` 与该 `activation.currentRouteGeneration`、`activation.candidateVariantId`、`activation.activationReceiptDigest` 三项精确一致，才可报告“该候选已上线并被实时查询使用”。任一字段缺失、不一致，或状态为 `pending|superseded|rejected`，都不得宣称上线；不得解析摘要、枚举 Permit、探测内部 Activation Plan。
 
 ## 图片语义分层（强制）
 

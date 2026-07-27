@@ -275,11 +275,41 @@ POST /api/evaluations/gates/retrieval_gate_v1/decisions
 GET /api/evaluations/gates/decisions/{decisionId}
 ```
 
-- `PASS`：候选在固定政策下未退化且安全检查通过。只能报告“通过门禁，尚未上线”。
+GET 详情在上述 Decision 字段之外增加只读的 `activation`；POST 创建响应不承诺
+包含它，客户端必须保存 `decisionId` 后读取详情。每次详情响应都必须先用
+Evaluation Schema 中的 `gateDecisionDetailResponse` 编译并严格校验；它使用封闭
+`oneOf` 区分 `pending|active|superseded|rejected|not_applicable`。Schema 校验失败
+时停止，不得自行忽略字段或猜测状态。
+
+- `PASS`：候选在固定政策下未退化且安全检查通过。创建后通常先返回
+  `activation.status=pending`，此时只能报告“通过门禁，等待服务端激活”。
 - `FAIL`：候选证据有效，但至少一项候选安全或质量检查失败。原样报告 `reasonCodes`，不要重试抽样。
 - `INVALID`：基线或候选证据不满足可比较条件。必须先修复基线、稳定性或证据完整性，不能解释为候选失败，也不能继续激活。
 - `409 EVALUATION_GATE_BASELINE_CONFLICT`：Baseline 已推进。重新读取 Baseline，并让用户确认是否针对新基线重新判定。
 
 Decision 响应不会暴露内部 Projection、Run Evidence、Activation Plan、Index Build 或 Namespace。客户端不得探测这些数据。
 
-当前尚未公开 Candidate 激活 API。即使 Decision 为 `PASS`，没有一次性 Permit 和 Route 激活回执也不得声称候选已上线。
+当前尚未公开 Candidate 激活 API；服务端自行投递一次性 Permit 并由受信 Worker
+消费。对 `PASS` Decision 有界轮询同一个 GET：
+
+- `activation.status=pending`：Permit 尚未形成终态，不得宣称上线；
+- `activation.status=rejected`：服务端拒绝消费，保留公开的 `reasonCode`；
+- `activation.status=superseded`：该候选曾成功激活，但已经不是当前 Route；
+- `activation.status=active`：服务端返回
+  `currentRouteGeneration`、`resultingRouteGeneration` 和
+  `activationReceiptDigest`。这些是不可逆推出内部 Permit 或 Plan 的公开回执摘要。
+
+即使状态为 `active`，也要立刻执行一次用户原本允许的非降级 Search，并核对：
+
+```text
+Decision.activation.currentRouteGeneration
+  == Search.snapshot.routeGeneration
+Decision.activation.candidateVariantId
+  == Search.snapshot.candidateVariantId
+Decision.activation.activationReceiptDigest
+  == Search.snapshot.activationReceiptDigest
+```
+
+只有三项全部存在且精确一致，才说明这次实时查询确实消费了该 Gate 激活的 Route。
+任一字段缺失或不一致，只能报告“激活证据未闭合”，不得重试构造 ID、解析摘要或
+探测内部 Permit/Activation Plan。

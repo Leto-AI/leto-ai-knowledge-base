@@ -9,6 +9,8 @@
 - 从检索或回答的短时不透明引用安全核对原始来源页；
 - 提交不可变评测 Draft，并用服务端解析的正文、图片和描述做客户端自检；
 - 使用管理员权限创建和评测候选检索 Variant。
+- 使用独立权限启动服务端 Answer + Judge 回答引用支持评测，并读取签名回执。
+- 回答评测创建使用耐久 `Idempotency-Key`；CLI 以四字段请求和所选公开 Profile 版本确定性生成，丢失响应时原样重放可恢复同一个运行，而部署升级后会安全形成新运行。
 
 Skill 不包含客户端可执行程序、服务端源码、固定服务地址或任何 Token。
 
@@ -45,6 +47,7 @@ Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint
 | 客户端提交与发布后自检 | `kb:read`、`agent:read`、`agent:write` |
 | 提交并自检自己创建的评测 Draft | `evaluation:draft` |
 | 运行 Variant、Target、Cohort、Baseline | `evaluation:operate` |
+| 运行诊断型回答引用支持评测 | `evaluation:answer-run` |
 | 签发上线 Gate/Permit | 普通 Skill 不应持有；需独立 `evaluation:activate` |
 
 为只读 UAT 与客户端提交分别签发 Token；不得把管理员 Token 交给公开 Skill。公开

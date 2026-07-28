@@ -36,9 +36,12 @@ GET /api/agent/v1/schemas/retrieval-diagnostics/1.0
 
 Bootstrap 中的 `actions.search.requestSchema` 是契约发现链接，不保证链接目标的
 根对象只含 Request Schema；必须读取目标后按上一段选择 `.request`/`.response`。
-编译前读取所选 Schema 的 `$schema` 并选择匹配的 Validator Dialect；当前契约使用
-JSON Schema 2020-12。客户端不支持声明的 Dialect 时停止，不能回退到 Draft-07 或
-Validator 默认方言后继续采用响应。
+编译前读取所选子 Schema 的 `$schema`；子对象没有声明时继承契约封套根部的
+`$schema`，两者都缺失则停止。按该声明选择 Validator Dialect；当前契约使用
+JSON Schema 2020-12。客户端不支持声明的 Dialect 时停止，不能回退到 Draft-07
+或 Validator 默认方言后继续采用响应。Citation Source 是明确例外：来源元数据
+必须编译契约的 `.metadataResponse`，预览是经过媒体类型门禁的二进制响应，不能
+寻找不存在的通用 `.response` 或编译整个封套。
 
 ## 授权文档目录
 

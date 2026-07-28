@@ -34,6 +34,12 @@ GET /api/agent/v1/schemas/retrieval-diagnostics/1.0
 `.response`。如果根对象本身就是标准 JSON Schema，才编译根对象。不得把整个契约
 封套拿去验证 Search 或 Index Status 的响应。
 
+Bootstrap 中的 `actions.search.requestSchema` 是契约发现链接，不保证链接目标的
+根对象只含 Request Schema；必须读取目标后按上一段选择 `.request`/`.response`。
+编译前读取所选 Schema 的 `$schema` 并选择匹配的 Validator Dialect；当前契约使用
+JSON Schema 2020-12。客户端不支持声明的 Dialect 时停止，不能回退到 Draft-07 或
+Validator 默认方言后继续采用响应。
+
 ## 授权文档目录
 
 用户要求查看知识库有哪些文档、选择一个已有文档，或批量核对实时索引时，只有

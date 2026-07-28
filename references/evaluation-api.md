@@ -368,6 +368,23 @@ CLI 会确定性产生新的稳定 Key，因此不会错误重放旧版本的失
 不同 Body 返回 `409 ANSWER_EVALUATION_IDEMPOTENCY_CONFLICT`。禁止临时更换
 Key 掩盖响应未知。
 
+直接 HTTP 的算法必须与 CLI 完全一致：
+
+1. 按固定顺序构造
+   `{request:{datasetVersionId,retrievalTargetId,answerProfileId,judgeProfileId},selectedProfileRevisions:{answerProfileDigest,judgeProfileDigest}}`；
+2. 对该普通 JSON 对象执行 UTF-8 `JSON.stringify`，不得排序键、添加空白或改变字段顺序；
+3. 计算 SHA-256 小写十六进制，取前 40 位，加前缀 `answer-eval-`。
+
+测试向量：
+
+```json
+{"request":{"datasetVersionId":"edsv_11111111111111111111111111111111","retrievalTargetId":"evrt_22222222222222222222222222222222","answerProfileId":"answer_evidence_v1","judgeProfileId":"citation_support_v1"},"selectedProfileRevisions":{"answerProfileDigest":"sha256:3333333333333333333333333333333333333333333333333333333333333333","judgeProfileDigest":"sha256:4444444444444444444444444444444444444444444444444444444444444444"}}
+```
+
+结果必须是
+`answer-eval-4e277191f4aab723271fc6188d12d72cb7e931fe`。Profile Digest
+只用于生成 Header，创建 Body 仍然只能有四个 ID。
+
 读取与轮询：
 
 ```http

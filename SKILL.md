@@ -60,6 +60,11 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 6. 历史列表、详情、反馈请求和反馈响应也必须分别通过 Bootstrap 的
    `historyResponseSchema`、`detailResponseSchema`、`feedbackRequestSchema`
    和 `feedbackResponseSchema` 校验；不能只校验首次 Answer 响应后就猜测后续字段。
+7. 首次回答和历史详情中的 `timings` 是服务端单调时钟记录的性能证据。向用户区分
+   首次检索、生成后证据快照复验、Prompt 准备、模型生成和结果校验；知识检索总耗时
+   是两次检索之和。`totalDurationMs` 截止到 Answer Run 持久化提交前，不包含客户端
+   网络传输，不得拿客户端墙钟耗时冒充服务端检索耗时，也不得把性能字段当作内容或
+   授权证据。
 
 ## 候选检索评测闭环
 

@@ -21,6 +21,11 @@ Token 只能从安全环境读取，不得回显。所有 JSON 写请求使用 `
 按 `binaryRequest`、声明时的字节数/SHA-256，以及服务端返回的固定 Header 执行。Schema
 失败时不得猜字段或继续下一阶段，应保留响应和稳定错误码后纠正当前请求。
 
+新建文档还必须读取 Bootstrap 的 `tenant.spaceBindings`。只有一个绑定时直接使用其
+`spaceId`；多个绑定时使用用户明确指定的目标，没有明确选择就先确认。不能提交未返回
+的 ID，也不能把 `includeDescendants=true` 解释为可以离开该空间树。更新已有文档不
+提交 `targetSpaceId`，文档移动属于独立后台管理操作。
+
 独立 Schema 端点有两种返回形状，必须先看返回对象本身：
 
 - 若根对象就是标准 JSON Schema（例如具有 `type`、`oneOf`、`$ref` 等关键字），
@@ -48,6 +53,7 @@ Idempotency-Key: source-<stable-id>
 
 {
   "operation": "create_document",
+  "targetSpaceId": "space_company",
   "sources": [
     {
       "logicalPath": "guide.pdf",
@@ -203,10 +209,9 @@ GET /api/agent/v1/work-orders/{workOrderId}/summary
 HTTP 410 表示 Work Order 已经过期，立即停止轮询，不复用旧 ID。只有
 `published` 且同时存在 Acceptance Receipt 与 Publication Receipt 才算成功。
 
-发布阶段由服务端确定性生成 `index/chunks.jsonl` 与 `index/manifest.json`，客户端 AI 不提交这两个文件。Index Manifest 是不可变 Content Package 的构建记录；其中的 `embeddingStatus` 不代表当前独立 Index Build 的实时状态。发布成功后保存 Publication Receipt 和 `documentId`，再按 [retrieval-api.md](retrieval-api.md) 查询实时索引。Work Order 属于临时处理流程，保留期结束后可能返回 410，不得依赖它作为长期状态入口。
-
-Publication Receipt 的发布代际字段名是 `generation`。调用
-`package-summary` 或版本锁定读取接口时，必须把它原样放入
-`expectedPublicationGeneration`；Search/Answer Citation 返回同一发布身份时字段名为
-`publicationGeneration`。这三个名字属于不同接口的明确契约，不能自行猜测、重命名或
-使用 Work Order/Unit 的 generation 替代。
+发布阶段由服务端确定性生成 `index/chunks.jsonl` 与 `index/manifest.json`，客户端
+AI 不提交这两个文件。只有同一 Work Order 返回 `published` 且同时存在 Acceptance
+Receipt 与 Publication Receipt 才能宣称提交成功。Skill Token 不具备通用文档、
+任务、Package 或实时索引读取权限；需要查阅知识或索引时，用户必须另行提供 Query
+Token，并重新读取该 Token 的 Bootstrap。Work Order 属于临时处理流程，保留期结束后
+可能返回 410，不得依赖它作为长期状态入口。

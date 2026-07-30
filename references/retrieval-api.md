@@ -17,7 +17,6 @@ GET /api/agent/v1/schemas/document-list/1.0
 GET /api/agent/v1/schemas/retrieval-index-status/1.0
 GET /api/agent/v1/schemas/retrieval-answer-request/1.0
 GET /api/agent/v1/schemas/retrieval-answer-response/3.2
-GET /api/agent/v1/schemas/package-summary/1.0
 GET /api/agent/v1/schemas/citation-source/1.0
 ```
 
@@ -50,7 +49,7 @@ Bootstrap 返回 `actions.documents.available=true` 才能调用。先读取 Act
 `responseSchema`，对返回封套的 `.response` 编译 JSON Schema，再请求：
 
 ```http
-GET /api/documents?limit=50&status=published
+GET /api/retrieval/documents?limit=50&status=published
 ```
 
 不要自行猜测端点。实际 Method、Endpoint、最大页大小和状态枚举以
@@ -69,20 +68,10 @@ GET /api/documents?limit=50&status=published
 - 400 表示分页或游标无效。停止使用该游标并从第一页重新读取；不得构造替代游标。
 - 每页响应都必须先通过 `document-list/1.0` 的 `.response` 校验，才可展示或继续。
 
-## 发布包权威摘要
+## Query 数据边界
 
-发布完成后，不要靠检索命中数推断完整 Chunk 数。携带 Publication Receipt
-的三个精确快照参数调用：
-
-```http
-GET /api/documents/{documentId}/package-summary?expectedRevisionId=...&expectedContentBuildId=...&expectedPublicationGeneration=...
-```
-
-响应给出权威 Unit、Page、Asset、Occurrence、Block 和 Chunk 数量，以及
-Package、Normalized Document、Index 和 Chunk Schema 身份。快照错误要区分：
-三项完全未提供返回 `CITATION_SNAPSHOT_REQUIRED`，只提供部分
-参数或格式错误返回 `CITATION_SNAPSHOT_INVALID`；版本已经推进返回
-`CITATION_SNAPSHOT_STALE`。遇到后者必须重新检索当前发布身份，不能模糊映射。
+Query Token 不提供 Package Summary、后台任务、原文或技术产物下载。客户端只能使用
+Bootstrap 明确开放的授权目录、Search、Answer、Citation、History 和 Feedback。
 
 ## 1. 混合或词法检索
 
@@ -165,19 +154,9 @@ Authorization: Bearer <LETU_KB_API_TOKEN>
 
 ### 打开引用时锁定发布快照
 
-检索结果与 Answer Citation 都包含 `revisionId`、`contentBuildId` 和
-`publicationGeneration`。读取文档详情或包内文件时必须把这三个值完整带回：
-
-```http
-GET /api/documents/{documentId}?expectedRevisionId={revisionId}&expectedContentBuildId={contentBuildId}&expectedPublicationGeneration={publicationGeneration}
-
-GET /api/documents/{documentId}/package/document.md?expectedRevisionId={revisionId}&expectedContentBuildId={contentBuildId}&expectedPublicationGeneration={publicationGeneration}
-```
-
-三项缺一或格式错误会返回 `400 CITATION_SNAPSHOT_INVALID`。若文档已发布新版本，
-服务端返回 `409 CITATION_SNAPSHOT_STALE`；此时必须重新检索，再展示新证据，不能把
-旧 Anchor 在新文档里做模糊重映射。Anchor 定位失败时也只能提示重新检索，不能静默
-退回文本搜索后仍称为精确引用。
+Query Token 不得调用后台通用文档详情、Package 原文或技术产物路径。正文证据只能
+来自 Search/Answer 响应和短时 Citation Source；Citation Source 会在每次读取时
+重新复验发布快照和当前权限。
 
 不得把问题放在旧式 `GET /api/search?q=...` 中；URL 可能进入代理、浏览器和访问日志。
 
@@ -234,7 +213,7 @@ Content-Type: application/json
 发布成功后使用 Publication Receipt 的 `documentId`：
 
 ```http
-GET /api/documents/{documentId}/retrieval-index
+GET /api/retrieval/documents/{documentId}/index-status
 ```
 
 可能状态：

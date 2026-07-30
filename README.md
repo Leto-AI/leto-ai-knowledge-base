@@ -42,9 +42,9 @@ Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint
 
 | 任务 | 最小 Scope |
 | --- | --- |
-| 只读检索、授权文档目录、实时索引、带证据回答 | `kb:read` |
+| 只读检索、授权文档目录、实时索引、带证据回答 | `retrieval:catalog`、`retrieval:query`、`retrieval:answer`、`retrieval:citation:read` |
 | 单次授权检索诊断 | `retrieval:diagnose` + Human Actor |
-| 客户端提交与发布后自检 | `kb:read`、`agent:read`、`agent:write` |
+| 客户端提交与同一 Work Order 发布确认 | `agent:read`、`agent:write` |
 | 提交并自检自己创建的评测 Draft | `evaluation:draft` |
 | 运行 Variant、Target、Cohort、Baseline | `evaluation:operate` |
 | 运行诊断型回答引用支持评测 | `evaluation:answer-run` |

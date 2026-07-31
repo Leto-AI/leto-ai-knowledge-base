@@ -3,7 +3,7 @@
 这是乐途智行公开的零安装 AI Skill。客户的 Codex、WorkBuddy 或其他兼容 Agent 可以直接调用 HTTPS API 完成：
 
 - 客户端 AI 解析并提交 Markdown、PDF 和图片；
-- 按当前权限查询知识和检查实时索引；
+- 按当前权限查询知识、检查实时索引并下载受限派生阅读包；
 - 由获授权的 Human 管理员诊断一次检索的召回、融合、精排与降级；
 - 使用服务端带证据回答能力；
 - 从检索或回答的短时不透明引用安全核对原始来源页；
@@ -42,7 +42,7 @@ Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint
 
 | 任务 | 最小 Scope |
 | --- | --- |
-| 只读检索、授权文档目录、实时索引、带证据回答 | `retrieval:catalog`、`retrieval:query`、`retrieval:answer`、`retrieval:citation:read` |
+| 只读检索、授权文档目录、实时索引、带证据回答、受限派生阅读包 | `retrieval:catalog`、`retrieval:query`、`retrieval:answer`、`retrieval:citation:read`、`retrieval:package:read` |
 | 单次授权检索诊断 | `retrieval:diagnose` + Human Actor |
 | 客户端提交与同一 Work Order 发布确认 | `agent:read`、`agent:write` |
 | 提交并自检自己创建的评测 Draft | `evaluation:draft` |

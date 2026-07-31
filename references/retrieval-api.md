@@ -15,7 +15,7 @@ Token 只能从安全环境读取，不得回显、记录或写入仓库。服�
 GET /api/agent/v1/schemas/retrieval-search/2.0
 GET /api/agent/v1/schemas/document-list/1.0
 GET /api/agent/v1/schemas/retrieval-index-status/1.0
-GET /api/agent/v1/schemas/retrieval-answer-request/1.0
+GET /api/agent/v1/schemas/retrieval-answer-request/1.1
 GET /api/agent/v1/schemas/retrieval-answer-response/3.2
 GET /api/agent/v1/schemas/citation-source/1.0
 ```
@@ -70,8 +70,30 @@ GET /api/retrieval/documents?limit=50&status=published
 
 ## Query 数据边界
 
-Query Token 不提供 Package Summary、后台任务、原文或技术产物下载。客户端只能使用
-Bootstrap 明确开放的授权目录、Search、Answer、Citation、History 和 Feedback。
+Query Token 不提供 Package Summary、后台任务、原始上传文件或完整技术 Package。
+它可以在 Bootstrap 明确开放 `actions.readPackage` 时下载一个受限派生阅读包；
+除此之外只能使用授权目录、Search、Answer、Citation、History 和 Feedback。
+
+### 下载受限派生阅读包
+
+该能力需要 `retrieval:package:read`。先读取
+`actions.readPackage.manifestResponseSchema`，校验 Manifest 响应，再逐文件下载：
+
+```http
+GET /api/retrieval/documents/{documentId}/read-package/manifest.json
+Authorization: Bearer <LETU_KB_API_TOKEN>
+```
+
+允许文件闭集只有 `document.md`、`normalized-document.json` 和 Manifest 明确列出的
+`assets/images/*` 引用图片。它不是原文件包，也不包含 OCR Sidecar、诊断、索引、
+来源预览、构建过程或其他技术产物。每个文件请求必须原样携带 Manifest 的
+`expectedRevisionId`、`expectedContentBuildId` 和
+`expectedPublicationGeneration` 三个查询参数，并校验返回字节数与 SHA-256。
+
+- 404：Document、空间授权或文件路径不可见；不得换 ID 或猜测其他路径。
+- 409：发布快照已变化；丢弃整个 staging，重新获取 Manifest。
+- 下载中撤权时，后续文件立即失败；不得交付此前已下载的半包。
+- 本地替换只能删除带 `package-directory/1.0` 所有权标记的目录，其他目录拒绝覆盖。
 
 ## 1. 混合或词法检索
 
@@ -154,9 +176,10 @@ Authorization: Bearer <LETU_KB_API_TOKEN>
 
 ### 打开引用时锁定发布快照
 
-Query Token 不得调用后台通用文档详情、Package 原文或技术产物路径。正文证据只能
-来自 Search/Answer 响应和短时 Citation Source；Citation Source 会在每次读取时
-重新复验发布快照和当前权限。
+Query Token 不得调用后台通用文档详情、原始上传文件或完整技术 Package 路径。
+在线问答证据只能来自 Search/Answer 响应和短时 Citation Source；用户明确要求
+离线查阅时，可以使用上述受限派生阅读包。所有入口都会在每次读取时重新复验发布
+快照和当前权限。
 
 不得把问题放在旧式 `GET /api/search?q=...` 中；URL 可能进入代理、浏览器和访问日志。
 
@@ -234,14 +257,15 @@ POST /api/retrieval/answer
 Content-Type: application/json
 
 {
-  "query": "员工的年假如何申请？",
-  "strategy": "hybrid",
-  "evidenceLimit": 12,
-  "allowDegraded": true
+  "query": "员工的年假如何申请？"
 }
 ```
 
 请求和响应必须按 Bootstrap 返回的两个 Answer Schema 校验。响应中的
+`actions.answer.policy` 说明服务端当前固定的检索策略、证据上限和降级策略，
+仅供展示与诊断；不得把这些字段复制进请求或尝试覆盖。Answer Profile 是服务端
+权威执行策略，客户端只提交 `query`。
+响应中的
 `insufficientEvidence=true` 表示证据不足，客户端不得自行补写答案。
 响应必须包含服务端生成的 `answerRunId`；客户端应保留它作为本次回答的
 可追溯身份，但不得解析或自行生成。

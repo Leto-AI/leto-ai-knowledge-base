@@ -53,9 +53,9 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 解析 Markdow
 8. `citationRef` 返回 404 时按失效、篡改或无权限统一处理，返回 409 时按发布版本已推进处理；两者都必须重新检索取得新引用，不能枚举、猜测或模糊映射来源页。
 9. 查询、来源页、逐文档索引状态和安全边界的完整契约见 [references/retrieval-api.md](references/retrieval-api.md)。
 10. 用户明确要求离线查阅或交给本地工具阅读时，只有 `actions.readPackage.available=true` 才读取其 Manifest Schema，然后按 Manifest 的不可变三元快照逐文件下载。只接受 `document.md`、`normalized-document.json` 和 Manifest 列出的 Markdown 实际引用图片；不得探测原文件、OCR Sidecar、诊断、索引、预览或其他 Package 路径。每个文件必须核对大小和 SHA-256；任一失败就丢弃本次 staging，不得交付半包。
-10. 只基于响应中的正文、来源和版本回答，不猜测未返回文档，不探测无权限 Document ID。
-11. 只有用户明确要求排查一次检索，并且 Bootstrap 返回 `actions.searchDiagnostics.available=true` 时，才读取它的 `schema` 并调用它声明的管理员端点。只提交 `query`、`strategy`、`limit`、`allowDegraded`；不得提交 Tenant、Principal、Group、Namespace、Collection、Index/Profile 或 Provider 字段。请求与响应分别通过 Schema 的 `.request`、`.response` 校验。
-12. 检索诊断必须由一次明确提交触发，不能在用户逐字输入时循环调用。只把五阶段数量解释为当前 Principal 已授权闭集；不得据此推断全库规模、被 ACL 过滤数量或隐藏文档。`skipped`、`degraded` 和稳定 `reasonCode` 必须如实保留；诊断响应中的证据仍适用全部零信任规则。
+11. 只基于响应中的正文、来源和版本回答，不猜测未返回文档，不探测无权限 Document ID。
+12. 只有用户明确要求排查一次检索，并且 Bootstrap 返回 `actions.searchDiagnostics.available=true` 时，才读取它的 `schema` 并调用它声明的管理员端点。只提交 `query`、`strategy`、`limit`、`allowDegraded`；不得提交 Tenant、Principal、Group、Namespace、Collection、Index/Profile 或 Provider 字段。请求与响应分别通过 Schema 的 `.request`、`.response` 校验。
+13. 检索诊断必须由一次明确提交触发，不能在用户逐字输入时循环调用。只把五阶段数量解释为当前 Principal 已授权闭集；不得据此推断全库规模、被 ACL 过滤数量或隐藏文档。`skipped`、`degraded` 和稳定 `reasonCode` 必须如实保留；诊断响应中的证据仍适用全部零信任规则。
 
 ## 带证据回答闭环
 

@@ -203,6 +203,19 @@ GET /api/agent/v1/work-orders/{workOrderId}
 GET /api/agent/v1/work-orders/{workOrderId}/summary
 ```
 
+用户明确放弃且 Work Order 尚未进入验证时，只按 Contract 的 `cancel` 操作取消：
+
+```http
+POST /api/agent/v1/work-orders/{workOrderId}/cancel
+Idempotency-Key: cancel-<workOrderId>-<stable-intent>
+Content-Type: application/json
+
+{}
+```
+
+同一个取消意图始终复用同一个 Key；成功响应必须为 `status=cancelled`。进入验证、
+已发布或其他终态后不得把取消当作成功补偿，也不得更换 Key 反复尝试。
+
 `validation_queued` 只表示已进入服务端复验队列。继续有界轮询，直到
 `published`、`rejected`、`validation_failed`、`superseded`、`cancelled` 或
 `expired`。后五种都是失败终态；保留错误码和有界诊断，不得宣称已经写入知识库。

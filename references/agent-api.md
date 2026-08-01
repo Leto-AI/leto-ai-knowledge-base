@@ -1,4 +1,4 @@
-# Agent API 1.0 调用参考
+# Agent API 3.0 调用参考
 
 这是乐途智行（英文品牌：leto AI）公开 Skill 使用的远程协议。
 
@@ -9,6 +9,13 @@ Authorization: Bearer <LETU_KB_API_TOKEN>
 ```
 
 Token 只能从安全环境读取，不得回显。所有 JSON 写请求使用 `Content-Type: application/json`；创建、Unit result 和 finalization 使用稳定且不复用到其他载荷的 `Idempotency-Key`。
+
+## 目录
+
+- [1. 创建并上传源文件](#1-创建并上传源文件)
+- [Office Authoring v3](#office-authoring-v3)
+- [2. 处理 Unit](#2-处理-unit)
+- [3. Finalization 与结果](#3-finalization-与结果)
 
 所有任务先调用 `GET /api/agent/v1/bootstrap`，并只执行
 `actions.submission.available=true` 时返回的提交协议。连接和重定向必须遵守
@@ -77,6 +84,104 @@ POST /api/agent/v1/work-orders/{workOrderId}/source-seal
 POST /api/agent/v1/work-orders/{workOrderId}/prepare
 {}
 ```
+
+## Office Authoring v3
+
+DOCX、PPTX、XLSX 只提交原件，且原件必须是唯一 `primary`。客户端不得解析 OOXML
+生成结构清单，不得声明或上传 `letu-office-authoring-manifest.json`；服务端会拒绝该旧
+协议。`source-seal` 后调用 `prepare`，服务端隔离 Office Worker 会在不调用 LLM、
+不执行宏、不刷新外链和不运行公式的前提下安全解析原件，并确定性生成全部可信 Unit。
+
+服务端按以下结构划分：
+
+- Word：按标题层级形成 `word_section`，公开当前 Section 的 `paragraphIds`、
+  `tableIds`、`noteIds` 与原生图片。
+- PowerPoint：每张幻灯片形成 `presentation_slide`，公开当前页的 `shapeIds`、
+  `noteIds` 与原生图片。
+- Excel：按有界范围形成 `spreadsheet_range`，公开 `range`、`cellAddresses`、
+  `chartIds`、缓存值与公式事实。遇到尚未支持且可能被静默遗漏的 Drawing 对象时，
+  `prepare` 失败关闭，不发布残缺文档。
+
+`prepare` 后的 Office Unit 使用 `external-authoring-unit/3.0`。客户端 AI 只处理服务端
+公开的 `source`、`input`、`requiredSourceObjectIds` 与 `sourceAssets`，不得猜测或扩展
+来源闭集。每个 `localBlock` 和 `imagePlacement` 必须带属于当前 Unit 的精确
+`sourceAnchor`；可用类型是 `word_paragraph`、`word_table`、`word_note`、
+`presentation_shape`、`presentation_note`、`spreadsheet_cell` 和
+`spreadsheet_range`。空 Word Section 没有任何 Paragraph/Table/Note 时，允许且只允许
+`word_section/sectionId`；空 Slide 没有任何 Shape/Note 时，允许且只允许
+`presentation_slide/slideId`。
+
+Unit 是有界传输和提交单元，不等于完整业务容器。超大 Section、Slide 或 Range 会被
+确定性拆成多个顺序 Unit，每个 Unit 最多公开 16,000 个必需来源对象，且服务端会按真实
+UTF-8 JSON 字节复核最小闭合输出不超过 4 MiB；客户端必须逐个处理，不得按
+`sectionId`、`slideId` 或 Range 名称自行去重。单个不可继续拆分的大文字对象可能使用
+`text/plain` 二进制输入；二进制 `input` 必须同时核对
+响应中的 `inputMediaType` 和 `inputSha256`。Spreadsheet 的 JSON input 使用
+`office-spreadsheet-authoring-input/1.0`，其闭合 Schema 从 Bootstrap 的
+`authoringInputSchemas.spreadsheet_range` 获取；读取当前 Unit 的 `range`、`formulas`、
+`charts` 和 `chartDependencies`，禁止执行公式或刷新外链。Chart 的输出归属已由服务端按
+锚点绑定当前 Range，但数据来源不一定在当前 Range：客户端必须按 `chartId` 一一关联
+dependency，遍历全部 `sourceRanges`、`rangeShards`、`cells` 和 `formulas`，包括跨 Sheet
+依赖，并据此整理图表表达的事实、趋势、比较和业务含义。不得只读标题或当前 Cell 后猜测，
+也不得跨 Unit 移动或合并 Chart。
+
+`chartDependencies` 是服务端从原生工作簿生成并绑定输入 SHA 的只读事实上下文，其中跨
+Sheet Cell 不属于当前 Unit 的 `requiredSourceObjectIds`，不得擅自写进 coverage。
+因此 coverage 不能证明客户端读过或理解了 dependency；客户端 AI 必须在提交前另外自检：
+Chart 与 dependency 的 `chartId` 集合和顺序一致，每个来源范围至少有一个 shard，所有
+shard 的 cells/formulas 都已参与语义整理。任何缺失、错配或无法理解都应停止并报告，不能
+提交一个仅在结构上通过 coverage 的残缺结果。
+
+输出还必须包含精确 coverage 回执：`coverage.sourceObjectIds` 与 Unit 的
+`requiredSourceObjectIds` 集合必须完全相同，不得漏项、重复或伪造；`mappings` 必须为
+每个 `localBlock` 和 `imagePlacement.localKey` 提供唯一映射，列出该输出实际处理的来源
+对象。全部必需对象至少被映射一次，每个 mapping 还必须包含对应 `sourceAnchor` 的对象。
+这形成机器可审计的处理责任闭包，但不是语义正确性的自动证明。
+因此禁止把全部来源 ID 无差别挂到一个并未实际表达它们的摘要，只为让集合校验通过；
+每个 mapping 列出的来源事实必须真实反映在对应输出里。语义质量由客户端 AI 的逐对象
+理解、Skill 约束和后续人工/模型抽检负责，服务端只对来源闭集、锚点和回执结构失败关闭。
+
+```json
+{
+  "expectedGeneration": 1,
+  "output": {
+    "localBlocks": [{
+      "localKey": "summary",
+      "type": "paragraph",
+      "text": "该章节说明产品定位与三个核心能力。",
+      "sourceAnchor": {
+        "kind": "word_paragraph",
+        "paragraphId": "word_paragraph_<server-id>"
+      }
+    }],
+    "imagePlacements": [],
+    "coverage": {
+      "sourceObjectIds": [
+        "word_paragraph_<server-id>",
+        "word_table_<server-id>"
+      ],
+      "mappings": [{
+        "localKey": "summary",
+        "sourceObjectIds": [
+          "word_paragraph_<server-id>",
+          "word_table_<server-id>"
+        ]
+      }]
+    }
+  }
+}
+```
+
+若 Unit 包含 `sourceAssets`，逐个从其 `inputUrl` 读取原生图片字节，并调用 Contract 的
+`promoteUnitSourceAsset` 操作提交唯一 `detailedDescription`、OCR `visibleText` 与
+`imageType`。该操作复用服务端已验证字节，不需要也不允许客户端再次上传图片。返回的
+`assetId` 必须通过带来源锚点的 `imagePlacements` 放入正文；任何非装饰原生图片缺少描述
+或放置都会导致 Finalization 失败。
+
+收到 `UNIT_SOURCE_ANCHOR_REQUIRED`、`UNIT_SOURCE_ANCHOR_INVALID` 或
+`UNIT_SOURCE_COVERAGE_INVALID` 时，按 `recommendedAction` 重新读取当前 Unit，只修正
+当前结果，不重建 Work Order。服务端负责可信结构、Canonical Markdown、Package、
+Chunk、Embedding、索引、权限和发布；客户端 AI 负责语义理解、重构和图片描述。
 
 ## 2. 处理 Unit
 
@@ -155,7 +260,9 @@ Evidence 身份同时绑定 `type`、`retention` 与内容 SHA-256。相同内�
 
 ### 提交语义结果
 
-结构以 `GET /api/agent/v1/schemas/unit-output/1.0` 为准：
+结构以 Bootstrap 返回的 Unit Output Schema 为准；当前提交协议统一从 Bootstrap 获取
+`/api/agent/v1/schemas/unit-output/3.0`，其中非 Office 仍是 v1 Unit，Office 使用 v3
+输出：
 
 ```http
 PUT /api/agent/v1/work-orders/{workOrderId}/units/{unitId}/result

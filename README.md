@@ -2,7 +2,7 @@
 
 这是乐途智行公开的零安装 AI Skill。客户的 Codex、WorkBuddy 或其他兼容 Agent 可以直接调用 HTTPS API 完成：
 
-- 客户端 AI 解析并提交 Markdown、PDF 和图片；
+- 客户端 AI 解析并提交 Markdown、PDF、图片、DOCX、PPTX 和 XLSX；
 - 按当前权限查询知识、检查实时索引并下载受限派生阅读包；
 - 由获授权的 Human 管理员诊断一次检索的召回、融合、精排与降级；
 - 使用服务端带证据回答能力；
@@ -34,6 +34,28 @@ Authorization: Bearer <安全环境中的 Token>
 
 Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint 和机器 Schema。只调用 `available=true` 的 Action。
 
+Office 文件使用 Work Order v3：客户端只提交原件；服务端隔离运行时安全解析 OOXML，
+确定性生成 Section/Slide/Range Unit、来源对象闭集和原生图片清单。客户端 AI 从可信
+Unit 开始做语义理解和图片描述，并提交精确来源锚点与完整 coverage 回执。服务端不向
+客户端暴露 Workspace、OSS、Provider 或索引内部结构，并负责验证、Canonical Markdown、
+文档包、Chunk、Embedding、权限和发布。
+
+超大 Section、Slide 和 Range 会自动拆成多个有界 Unit；Excel Unit 提供经过哈希绑定的
+闭合 JSON Range/Formula/Chart 输入及 `chartDependencies`。客户端必须按 `chartId`
+读取全部跨 Sheet `sourceRanges`、`rangeShards`、`cells` 和 `formulas`；coverage 不能替代
+这项语义自检。服务端按真实序列化字节约束输出预算，并把 Chart 精确归属到当前 Range。
+单个不可继续拆分的大文字对象会使用带 SHA-256 的 `text/plain`
+输入。Coverage 是逐对象处理责任回执，客户端不得把未理解的来源对象批量挂到一个摘要
+来绕过语义整理。
+
+回答引用支持评测例外使用独立服务账号 Profile：管理员签发前缀为 `leto_ae` 的
+`answer_evaluation` Token，客户端先请求
+`GET /api/agent/v1/answer-evaluation/bootstrap`。普通 Skill、Query 或登录管理员
+凭证不能替代该 Token。客户端必须使用响应中的 `endpoints.profiles`、
+`endpoints.create` 和 `endpoints.detail`，并先读取 `schemas.contract` 的专用最小
+Contract；不得依赖记忆硬编码后续接口，也不得为回答评测读取通用 Evaluation
+Schema。
+
 实际 HTTP 调用必须使用[连接安全](references/connection-security.md)中的进程内凭据模式：运行时从环境变量读取 Token，禁止把展开值放入 `curl -H`、命令行参数或日志。异步任务严格按 Bootstrap 的 `pollingPolicy` 有界轮询；超时保留资源 ID 并报告仍在处理，不能擅自重建。
 
 ## 最小权限
@@ -47,7 +69,7 @@ Bootstrap 会根据 Token 的实际权限返回可执行的 `actions`、Endpoint
 | 客户端提交与同一 Work Order 发布确认 | `agent:read`、`agent:write` |
 | 提交并自检自己创建的评测 Draft | `evaluation:draft` |
 | 运行 Variant、Target、Cohort、Baseline | `evaluation:operate` |
-| 运行诊断型回答引用支持评测 | `evaluation:answer-run` |
+| 运行诊断型回答引用支持评测 | `answer_evaluation` 服务账号 Token；精确 Scope 为 `evaluation:answer-run` |
 | 签发上线 Gate/Permit | 普通 Skill 不应持有；需独立 `evaluation:activate` |
 
 为只读 UAT 与客户端提交分别签发 Token；不得把管理员 Token 交给公开 Skill。公开

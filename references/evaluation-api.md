@@ -15,11 +15,13 @@ Content-Type: application/json
 Tenant、ACL、Qdrant Collection、Vector Namespace、Index Build 闭集和服务端配置
 摘要不得出现在客户端输入、日志或回答中。
 
-回答引用支持评测另需 `evaluation:answer-run`。它会真实调用 Answer 与 Judge
-Provider，不由普通 `evaluation:operate` 隐式获得；客户端只负责选择服务端公开的
-Profile ID 和轮询资源，不能提交回答或裁判结果。
+回答引用支持评测使用独立 `answer_evaluation` 服务账号 Token（前缀
+`leto_ae`），精确 Scope 为 `evaluation:answer-run`。它会真实调用 Answer 与
+Judge Provider，不由普通 `evaluation:operate`、管理员登录、Skill 或 Query
+Token 隐式获得；客户端只负责选择服务端公开的 Profile ID 和轮询资源，不能提交
+回答或裁判结果。
 
-每次任务先读取 `GET /api/agent/v1/bootstrap`。Draft 流程只在
+普通评测任务先读取 `GET /api/agent/v1/bootstrap`。Draft 流程只在
 `actions.evaluationDraft.available=true` 时执行；候选运行流程只在
 `actions.evaluation.available=true` 时执行。分别读取 Action 指向的机器契约：
 
@@ -321,8 +323,29 @@ Decision.activation.activationReceiptDigest
 ## 7. 回答引用支持评测
 
 回答评测与检索排序 `evrun_*` 是两个独立产品对象。前者使用 `aevr_*`，只在
-Bootstrap 的 `actions.answerEvaluation.available=true`、`runtimeReady=true`
-且用户明确同意执行付费 Answer + Judge 调用时运行。
+用户明确同意执行付费 Answer + Judge 调用时运行。第一步固定为：
+
+```http
+GET /api/agent/v1/answer-evaluation/bootstrap
+```
+
+只有响应的 `credentialProfile=answer_evaluation`、`diagnosticOnly=true`、
+`paidProviderCalls=true`、`explicitUserConfirmationRequired=true` 和
+`runtimeReady=true` 同时成立才继续。不得回退到通用 Bootstrap 猜测付费能力。
+后续请求只使用该响应的 `endpoints.profiles`、`endpoints.create` 与
+`endpoints.detail`。前两项是同源相对路径；后一项含唯一的
+`{answerEvaluationRunId}` 占位符。不得读取旧字段名或硬编码路径。下文 HTTP
+路径仅展示当前响应值。
+
+先读取同一 Bootstrap 的 `schemas.contract`。该专用最小 Contract 的 `$id`
+必须是 `urn:leto-ai:knowledge-base:answer-evaluation-agent:1.0`，且其中
+`endpoints` 必须与 Bootstrap 精确相同；否则失败关闭。只分别使用
+`profilesResponse`、`create.request`、`create.response` 和 `detailResponse`
+校验本流程数据，不读取包含候选评测、Baseline 或 Gate 的通用 Evaluation Schema。
+
+`credentialLifecycle=retiring_overlap` 或
+`costSafety.retiringOverlapMayCreatePaidRun=false` 时只能读取已有运行，不能创建
+新的付费任务；换用管理员签发的新一代 Token 后重新读取 Bootstrap。
 
 先发现安全 Profile 清单：
 

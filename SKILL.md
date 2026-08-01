@@ -43,7 +43,9 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 在客户端�
    使用 `presentation_slide/slideId`。`output.coverage.sourceObjectIds` 必须把
    `requiredSourceObjectIds` 原样、无遗漏、无重复地全部回传，并用唯一 `mappings` 把每个
    `localBlock`/`imagePlacement.localKey` 绑定到它实际处理的来源对象；全部必需对象至少被
-   映射一次，且 mapping 必须包含该输出的 `sourceAnchor` 对象。不得为了通过 coverage 把
+   映射一次。每个 mapping 只提交机器 Schema 允许的 `localKey` 和 `sourceObjectIds`；
+   `sourceAnchor` 只放在对应 `localBlock` 或 `imagePlacement` 上，其锚点对象 ID 必须包含在
+   该 mapping 的 `sourceObjectIds` 中。不得为了通过 coverage 把
    未理解的对象批量挂到同一个摘要；每个映射对象的有效信息必须真实反映在对应输出中。
    `coverage` 是处理责任回执，不是让服务器替客户端伪造语义质量证明。不得复制解析材料充当正文，
    也不得提交 Canonical

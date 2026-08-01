@@ -135,7 +135,9 @@ shard 的 cells/formulas 都已参与语义整理。任何缺失、错配或无�
 输出还必须包含精确 coverage 回执：`coverage.sourceObjectIds` 与 Unit 的
 `requiredSourceObjectIds` 集合必须完全相同，不得漏项、重复或伪造；`mappings` 必须为
 每个 `localBlock` 和 `imagePlacement.localKey` 提供唯一映射，列出该输出实际处理的来源
-对象。全部必需对象至少被映射一次，每个 mapping 还必须包含对应 `sourceAnchor` 的对象。
+对象。全部必需对象至少被映射一次。Mapping 的闭合 Schema 只允许 `localKey` 和
+`sourceObjectIds`；`sourceAnchor` 属于对应的 `localBlock` 或 `imagePlacement`，其锚点对象
+ID 必须同时出现在该 mapping 的 `sourceObjectIds` 中，不能把 `sourceAnchor` 复制进 mapping。
 这形成机器可审计的处理责任闭包，但不是语义正确性的自动证明。
 因此禁止把全部来源 ID 无差别挂到一个并未实际表达它们的摘要，只为让集合校验通过；
 每个 mapping 列出的来源事实必须真实反映在对应输出里。语义质量由客户端 AI 的逐对象

@@ -35,7 +35,12 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 在客户端�
 4. 按服务器返回的同源 upload URL 和 headers 上传每个源对象；上传请求仍必须携带通用 `Authorization: Bearer $LETU_KB_API_TOKEN`，然后执行 `source-seal`。不要构造 OSS 地址，也绝不向跨源 URL 发送 Token。
 5. 执行 `prepare`。循环读取 `units/next`；返回 `done=true` 时结束。
 6. 对 Markdown 单元理解正文；对图片或 PDF 页，读取该 Unit 的 `/input` 二进制。Office
-   v3 Unit 使用其 `source`、`requiredSourceObjectIds` 和语义 `input`：每个
+   v3 Unit 使用其 `source`、`requiredSourceObjectIds` 和语义 `input`。Word 与 PPT
+   必须分别读取 Bootstrap 的 `authoringInputSchemas.word_section` 和
+   `authoringInputSchemas.presentation_slide`，下载 `application/json` 后先核对
+   `inputSha256` 并通过对应 Schema；只按 `objects[].sourceObjectId` 与同一对象的 `text`
+   建立语义映射，禁止按行号、数组位置或文本相似度猜 paragraphId/shapeId。Excel 同样按
+   `authoringInputSchemas.spreadsheet_range` 验证。每个
    `localBlock` 与 `imagePlacement` 都必须
    提交一个精确 `sourceAnchor`，且只能引用当前 Unit 已公开的 paragraphId、tableId、
    noteId、shapeId、cellAddress 或 range。只有当前 Word Section 完全没有段落、表格和
@@ -55,7 +60,10 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 在客户端�
 8. Office Unit 若带 `sourceAssets`，逐个使用其同源 `inputUrl` 读取原生图片，再调用
    Contract 的 `promoteUnitSourceAsset` 提交 `detailedDescription`、`visibleText` 和
    `imageType`；服务端直接把已验证的原生字节登记成正式 Asset，客户端不得重复上传。
-   每个非装饰原生图片都必须出现在当前 Unit 的 `imagePlacements`。其他需要进入最终文档的
+   每个 `sourceAsset.sourceObjectIds` 都是服务端给出的原生图片所属对象闭集；对应
+   `imagePlacement.sourceAnchor` 必须选择其中实际放置位置的对象，且该 ID 还必须进入这个
+   placement 的 coverage mapping。不得按图片顺序猜 Shape。每个非装饰原生图片都必须
+   出现在当前 Unit 的 `imagePlacements`。其他需要进入最终文档的
    原图、PDF 页图、客户端裁剪图或生成图，才使用 Contract 中的
    `createAssetUpload`/`uploadAsset`。不要提交、记录或猜测服务端 Workspace 路径。
    `imageType` 只能从 capabilities/Asset Schema 的 `photo`、`diagram`、`chart`、
@@ -73,9 +81,9 @@ description: 使用客户自己的 Codex、WorkBuddy 或其他 AI 在客户端�
    数量一致、`chartId` 一一对应、每个来源范围和 shard 均已读取，并让对应输出真实表达其
    信息；缺失、错配或无法理解时不得提交该 Unit。
    服务端可能为满足大小预算把同一 Section、Slide 或
-   Range 拆成多个 Unit，必须逐 Unit 处理，不能假设容器 ID 全局只出现一次。若
-   `inputMediaType=text/plain`，它可能是单个不可继续拆分的大文字对象，同样必须先核对
-   `inputSha256` 再完整处理；Excel Chart 的输出归属已由服务端绑定当前 Range，但其
+   Range 拆成多个 Unit，必须逐 Unit 处理，不能假设容器 ID 全局只出现一次。Word/PPT
+   的大文字对象仍保存在带 `sourceObjectId` 的结构化 JSON 中，不得退化成无 ID 的纯文本；
+   Excel Chart 的输出归属已由服务端绑定当前 Range，但其
    `chartDependencies` 可以跨 Unit、跨 Sheet 提供只读数据上下文；不得移动、合并 Chart，
    也不得省略这些依赖。
 9. 如果解析、OCR、视觉或编辑过程产生了有追溯价值且用户授权提交的 Evidence，先创建 `/evidence-uploads`，再按返回的 URL 与 headers PUT 原始字节。只允许 capabilities 声明的媒体、类型和保留策略；不要上传源文件副本、Token、环境文件、日志全集、脚本、可执行文件、归档或网络抓包。`build_lifetime` 随正式包保留，`temporary` 不进入发布包。

@@ -111,12 +111,19 @@ DOCX、PPTX、XLSX 只提交原件，且原件必须是唯一 `primary`。客户
 `word_section/sectionId`；空 Slide 没有任何 Shape/Note 时，允许且只允许
 `presentation_slide/slideId`。
 
+Word 和 PowerPoint 的 Unit input 都是带对象身份的闭合 JSON。分别从 Bootstrap 的
+`authoringInputSchemas.word_section` 和 `authoringInputSchemas.presentation_slide` 读取
+Schema，下载后核对 `inputMediaType=application/json` 与 `inputSha256`，再验证 Payload。
+`objects` 中每项都同时包含 `sourceObjectId`、原生对象 `kind` 和该对象自己的 `text`；只能
+用这个 ID 建立 output mapping。不得把多行纯文本按行号、数组位置或相似度重新配对成
+paragraphId/shapeId，也不得合并后再把全部 ID 挂到一个无法证明来源的摘要。
+
 Unit 是有界传输和提交单元，不等于完整业务容器。超大 Section、Slide 或 Range 会被
 确定性拆成多个顺序 Unit，每个 Unit 最多公开 16,000 个必需来源对象，且服务端会按真实
 UTF-8 JSON 字节复核最小闭合输出不超过 4 MiB；客户端必须逐个处理，不得按
-`sectionId`、`slideId` 或 Range 名称自行去重。单个不可继续拆分的大文字对象可能使用
-`text/plain` 二进制输入；二进制 `input` 必须同时核对
-响应中的 `inputMediaType` 和 `inputSha256`。Spreadsheet 的 JSON input 使用
+`sectionId`、`slideId` 或 Range 名称自行去重。单个不可继续拆分的大文字对象仍使用带
+`sourceObjectId` 的结构化 JSON；不得退化成无法证明对象对应关系的纯文本。二进制
+`input` 必须同时核对响应中的 `inputMediaType` 和 `inputSha256`。Spreadsheet 的 JSON input 使用
 `office-spreadsheet-authoring-input/1.0`，其闭合 Schema 从 Bootstrap 的
 `authoringInputSchemas.spreadsheet_range` 获取；读取当前 Unit 的 `range`、`formulas`、
 `charts` 和 `chartDependencies`，禁止执行公式或刷新外链。Chart 的输出归属已由服务端按
@@ -177,8 +184,11 @@ ID 必须同时出现在该 mapping 的 `sourceObjectIds` 中，不能把 `sourc
 若 Unit 包含 `sourceAssets`，逐个从其 `inputUrl` 读取原生图片字节，并调用 Contract 的
 `promoteUnitSourceAsset` 操作提交唯一 `detailedDescription`、OCR `visibleText` 与
 `imageType`。该操作复用服务端已验证字节，不需要也不允许客户端再次上传图片。返回的
-`assetId` 必须通过带来源锚点的 `imagePlacements` 放入正文；任何非装饰原生图片缺少描述
-或放置都会导致 Finalization 失败。
+`assetId` 必须通过带来源锚点的 `imagePlacements` 放入正文。每个 sourceAsset 同时公开
+`sourceObjectIds`，它是该图片在当前 Unit 中所属的原生 Paragraph/Table/Shape 对象闭集；
+`imagePlacement.sourceAnchor` 必须选择其中实际放置位置的对象，其 ID 也必须进入该
+placement 的 coverage mapping。禁止按 sourceAssets 顺序猜图片属于哪个 Shape。任何
+非装饰原生图片缺少描述或放置都会导致 Finalization 失败。
 
 收到 `UNIT_SOURCE_ANCHOR_REQUIRED`、`UNIT_SOURCE_ANCHOR_INVALID` 或
 `UNIT_SOURCE_COVERAGE_INVALID` 时，按 `recommendedAction` 重新读取当前 Unit，只修正

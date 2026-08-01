@@ -44,9 +44,11 @@ Unit 开始做语义理解和图片描述，并提交精确来源锚点与完整
 闭合 JSON Range/Formula/Chart 输入及 `chartDependencies`。客户端必须按 `chartId`
 读取全部跨 Sheet `sourceRanges`、`rangeShards`、`cells` 和 `formulas`；coverage 不能替代
 这项语义自检。服务端按真实序列化字节约束输出预算，并把 Chart 精确归属到当前 Range。
-单个不可继续拆分的大文字对象会使用带 SHA-256 的 `text/plain`
-输入。Coverage 是逐对象处理责任回执，客户端不得把未理解的来源对象批量挂到一个摘要
-来绕过语义整理。
+Word/PPT Unit 也使用带 SHA-256 的闭合 JSON，每个 `objects[]` 同时提供
+`sourceObjectId`、对象类型和该对象自己的文字；原生图片通过
+`sourceAssets[].sourceObjectIds` 指明所属 Paragraph/Table/Shape。客户端不得按行号、
+数组位置或图片顺序猜来源。Coverage 是逐对象处理责任回执，客户端不得把未理解的来源
+对象批量挂到一个摘要来绕过语义整理。
 
 回答引用支持评测例外使用独立服务账号 Profile：管理员签发前缀为 `leto_ae` 的
 `answer_evaluation` Token，客户端先请求
